@@ -1,0 +1,29 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 11.00
+# Visual Studio 2010
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "ed6inf", "ed6inf.vcxproj", "{148281B9-45F7-31D4-26A7-5B63BE62FC51}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		d3d8|Win32 = d3d8|Win32
+		dinput8|Win32 = dinput8|Win32
+		dsound|Win32 = dsound|Win32
+		ed6Ex|Win32 = ed6Ex|Win32
+		version|Win32 = version|Win32
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{148281B9-45F7-31D4-26A7-5B63BE62FC51}.d3d8|Win32.ActiveCfg = version|Win32
+		{148281B9-45F7-31D4-26A7-5B63BE62FC51}.d3d8|Win32.Build.0 = version|Win32
+		{148281B9-45F7-31D4-26A7-5B63BE62FC51}.dinput8|Win32.ActiveCfg = dinput8|Win32
+		{148281B9-45F7-31D4-26A7-5B63BE62FC51}.dinput8|Win32.Build.0 = dinput8|Win32
+		{148281B9-45F7-31D4-26A7-5B63BE62FC51}.dsound|Win32.ActiveCfg = dsound|Win32
+		{148281B9-45F7-31D4-26A7-5B63BE62FC51}.dsound|Win32.Build.0 = dsound|Win32
+		{148281B9-45F7-31D4-26A7-5B63BE62FC51}.ed6Ex|Win32.ActiveCfg = ed6Ex|Win32
+		{148281B9-45F7-31D4-26A7-5B63BE62FC51}.ed6Ex|Win32.Build.0 = ed6Ex|Win32
+		{148281B9-45F7-31D4-26A7-5B63BE62FC51}.version|Win32.ActiveCfg = version|Win32
+		{148281B9-45F7-31D4-26A7-5B63BE62FC51}.version|Win32.Build.0 = version|Win32
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+EndGlobal
