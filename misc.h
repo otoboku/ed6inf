@@ -8,11 +8,11 @@ template<class T1> T1 TypeMax(T1 t1)
 {
 	if ((T1)0xFFFFFFFFFFFFFFFF > 0)
 	{
-		return ~T1(0);
+		return (T1)~T1(0);
 	}
 	else
 	{
-		return ~(T1)(T1(1) << (sizeof(T1)*8 - 1));
+		return (T1)~(T1)(T1(1) << (sizeof(T1)*8 - 1));
 	}
 }
 
@@ -58,7 +58,7 @@ template<class T1, class T2> T1 SaturateConvert(T1 t1, T2 t2)
 		{
 			if ((T1)t2 < 0)
 			{
-				t1 = ~(T1)(T1(1) << (sizeof(T1)*8 - 1));
+				t1 = (T1)~(T1)(T1(1) << (sizeof(T1)*8 - 1));
 				return t1;
 			}
 			else
@@ -80,12 +80,12 @@ template<class T1, class T2> T1 SaturateConvert(T1 t1, T2 t2)
 		//min = (T2)TypeMin(t1);
 		if ((T1)0xFFFFFFFFFFFFFFFF > 0)
 		{
-			max = (T2)~T1(0);
+			max = (T2)(T1)~T1(0);
 			min = 0;
 		}
 		else
 		{
-			max = (T2)~(T1)(T1(1) << (sizeof(T1)*8 - 1));
+			max = (T2)(T1)~(T1)(T1(1) << (sizeof(T1)*8 - 1));
 			min = (T2)(T1)(T1(1) << (sizeof(T1)*8 - 1));
 		}
 		//printf("%d %d\r\n", max, min);

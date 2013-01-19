@@ -19,6 +19,7 @@
 
 bool bIsInit = false;
 
+#if 0
 #if D3D8_VERSION
 
 #pragma comment(linker,"/ENTRY:DllMain")
@@ -184,11 +185,34 @@ BOOL WINAPI DllMain(HINSTANCE hInstance, ULONG Reason, LPVOID lpReserved)
     return TRUE;
 }
 #else
+#endif
+#endif
 
 #pragma comment(linker,"/ENTRY:DllMain")
 
 #if ED6EX_VERSION
 #pragma comment(linker, "/EXPORT:Direct3DCreate8=d3d8.Direct3DCreate8")
+
+
+#elif D3D8_VERSION
+#pragma comment(linker, "/EXPORT:ValidatePixelShader=system32\\d3d8.ValidatePixelShader,@1")
+#pragma comment(linker, "/EXPORT:ValidateVertexShader=system32\\d3d8.ValidateVertexShader,@2")
+#pragma comment(linker, "/EXPORT:DebugSetMute=system32\\d3d8.DebugSetMute,@3")
+#pragma comment(linker, "/EXPORT:Direct3DCreate8=system32\\d3d8.Direct3DCreate8,@4")
+
+#elif DSOUND_VERSION
+#pragma comment(linker, "/EXPORT:DirectSoundCreate=system32\\dsound.DirectSoundCreate,@1")
+#pragma comment(linker, "/EXPORT:DirectSoundEnumerateA=system32\\dsound.DirectSoundEnumerateA,@2")
+#pragma comment(linker, "/EXPORT:DirectSoundEnumerateW=system32\\dsound.DirectSoundEnumerateW,@3")
+#pragma comment(linker, "/EXPORT:DllCanUnloadNow=system32\\dsound.DllCanUnloadNow,@4")
+#pragma comment(linker, "/EXPORT:DllGetClassObject=system32\\dsound.DllGetClassObject,@5")
+#pragma comment(linker, "/EXPORT:DirectSoundCaptureCreate=system32\\dsound.DirectSoundCaptureCreate,@6")
+#pragma comment(linker, "/EXPORT:DirectSoundCaptureEnumerateA=system32\\dsound.DirectSoundCaptureEnumerateA,@7")
+#pragma comment(linker, "/EXPORT:DirectSoundCaptureEnumerateW=system32\\dsound.DirectSoundCaptureEnumerateW,@8")
+#pragma comment(linker, "/EXPORT:GetDeviceID=system32\\dsound.GetDeviceID,@9")
+#pragma comment(linker, "/EXPORT:DirectSoundFullDuplexCreate=system32\\dsound.DirectSoundFullDuplexCreate,@10")
+#pragma comment(linker, "/EXPORT:DirectSoundCreate8=system32\\dsound.DirectSoundCreate8,@11")
+#pragma comment(linker, "/EXPORT:DirectSoundCaptureCreate8=system32\\dsound.DirectSoundCaptureCreate8,@12")
 
 #elif VERSION_VERSION
 #pragma comment(linker, "/EXPORT:GetFileVersionInfoA=system32\\version.GetFileVersionInfoA,@1")
@@ -270,4 +294,4 @@ BOOL WINAPI DllMain(HINSTANCE hInstance, ULONG Reason, LPVOID lpReserved)
 	
     return TRUE;
 }
-#endif
+//#endif
