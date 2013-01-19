@@ -1957,7 +1957,7 @@ void Init()
 		using namespace NED63;
 		if (nSepithUpLimit == 0) nSepithUpLimit = 300;
 
-		if (*(unsigned char*)addrChangeEnemyStatusPatch0 == 0xE9)	return;	//0xE8 call 0xE9 jump; ·ÀÖ¹ÖØ¸´²¹¶¡
+		if (*(unsigned char*)addrChangeEnemyStatusPatch0 != 0xE8)	return;	//0xE8 call 0xE9 jump; ·ÀÖ¹ÖØ¸´²¹¶¡
 		MEMORY_PATCH p[] =
 		{
 			PATCH_MEMORY(0x643525,	4, 0x1B73A0),	// Exp %4d->%5d
@@ -2042,7 +2042,7 @@ void Init()
 		addrChangeEnemyStatusPatch1 = addrChangeEnemyStatusPatch0 + 5;
 		addrChangeEnemyStatusPatch2 = 0x004A36A0; // call
 
-		if (*(unsigned char*)addrChangeEnemyStatusPatch0 == 0xE9)	return;	//0xE8 call 0xE9 jump; ·ÀÖ¹ÖØ¸´²¹¶¡
+		if (*(unsigned char*)addrChangeEnemyStatusPatch0 != 0xE8)	return;	//0xE8 call 0xE9 jump; ·ÀÖ¹ÖØ¸´²¹¶¡
 		MEMORY_PATCH p[] =
 		{
 			PATCH_MEMORY(0x643525,	4, 0x1B186C),	// Exp %4d->%5d
@@ -2122,7 +2122,7 @@ void Init()
 		unsigned char p00528A34[5] = { 0xE8, 0xD7, 0xFD, 0xFF, 0xFF };
 		unsigned char p0043CA3F[6] = { 0xE9, 0x2E, 0x01, 0x00, 0x00, 0x90 };
 
-		if (*(unsigned char*)addrChangeEnemyStatusPatch0 == 0xE9)	return;	//0xE8 call 0xE9 jump; ·ÀÖ¹ÖØ¸´²¹¶¡
+		if (*(unsigned char*)addrChangeEnemyStatusPatch0 != 0xE8)	return;	//0xE8 call 0xE9 jump; ·ÀÖ¹ÖØ¸´²¹¶¡
 
 		if (*(UINT*)0x005B8654 == 0x59977089 && *(UINT*)0x004A0C34 == 0x5B863C) //ÈÕ°æ windowsÃû³Æ
 		{
@@ -2174,7 +2174,7 @@ void Init()
 		using namespace NED62;
 		if (nSepithUpLimit == 0) nSepithUpLimit = 70;
 
-		if (*(unsigned char*)addrChangeEnemyStatusPatch0 == 0xE9)	return;	//0xE8 call 0xE9 jump; ·ÀÖ¹ÖØ¸´²¹¶¡
+		if (*(unsigned char*)addrChangeEnemyStatusPatch0 != 0xE8)	return;	//0xE8 call 0xE9 jump; ·ÀÖ¹ÖØ¸´²¹¶¡
 		MEMORY_PATCH p[] =
 		{
 			PATCH_MEMORY(0x643525,	4, 0x15C168),	// Exp %4d->%5d
@@ -2239,7 +2239,7 @@ void Init()
 		addrChangeEnemyStatusPatch1 = addrChangeEnemyStatusPatch0 + 5;
 		addrChangeEnemyStatusPatch2 = 0x004CCF00; // call
 
-		if (*(unsigned char*)addrChangeEnemyStatusPatch0 == 0xE9)	return;	//0xE8 call 0xE9 jump; ·ÀÖ¹ÖØ¸´²¹¶¡
+		if (*(unsigned char*)addrChangeEnemyStatusPatch0 != 0xE8)	return;	//0xE8 call 0xE9 jump; ·ÀÖ¹ÖØ¸´²¹¶¡
 		MEMORY_PATCH p[] =
 		{
 			PATCH_MEMORY(0x643525,	4, 0x15B644),	// Exp %4d->%5d
@@ -2305,7 +2305,7 @@ void Init()
 			0x54, 0x00, 0x61, 0xC3, 0xE8, 0xF7, 0xE9, 0xF7, 0xFF, 0xE8, 0x42, 0x3C, 0xF8, 0xFF, 0x84, 0xC0,
 			0x74, 0xF2, 0xC3};
 
-		if (*(unsigned char*)addrChangeEnemyStatusPatch0 == 0xE9)	return;	//0xE8 call 0xE9 jump; ·ÀÖ¹ÖØ¸´²¹¶¡
+		if (*(unsigned char*)addrChangeEnemyStatusPatch0 != 0xE8)	return;	//0xE8 call 0xE9 jump; ·ÀÖ¹ÖØ¸´²¹¶¡
 
 		if (*(UINT*)0x00562C04 == 0x59977089 && *(UINT*)0x004C6F01 == 0x562BEC) //ÈÕ°æ windowsÃû³Æ
 		{
@@ -2369,7 +2369,7 @@ void Init()
 		using namespace NED61;
 		if (nSepithUpLimit == 0) nSepithUpLimit = 70;
 
-		if (*(unsigned char*)addrChangeEnemyStatusPatch0 == 0xE9)	return;	//0xE8 call 0xE9 jump; ·ÀÖ¹ÖØ¸´²¹¶¡
+		if (*(unsigned char*)addrChangeEnemyStatusPatch0 != 0xE8)	return;	//0xE8 call 0xE9 jump; ·ÀÖ¹ÖØ¸´²¹¶¡
 		MEMORY_PATCH p[] =
 		{
 			PATCH_MEMORY(0x643525,	4, 0x11A214),	// Exp %4d->%5d
@@ -2434,7 +2434,7 @@ void Init()
 		addrChangeEnemyStatusPatch1 = addrChangeEnemyStatusPatch0 + 5;
 		addrChangeEnemyStatusPatch2 = 0x004AE440; // call
 
-		if (*(unsigned char*)addrChangeEnemyStatusPatch0 == 0xE9)	return;	//0xE8 call 0xE9 jump; ·ÀÖ¹ÖØ¸´²¹¶¡
+		if (*(unsigned char*)addrChangeEnemyStatusPatch0 != 0xE8)	return;	//0xE8 call 0xE9 jump; ·ÀÖ¹ÖØ¸´²¹¶¡
 		MEMORY_PATCH p[] =
 		{
 			PATCH_MEMORY(0x643525,	4, 0x11A694),	// Exp %4d->%5d
