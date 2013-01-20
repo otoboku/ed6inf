@@ -19,14 +19,28 @@ sc日文旧版1.020
 1. 更改 战斗获得耀晶片上限(整合、理补除外)
 2. 改变 敌方能力值
 
+
 用法：
-把dsound.dll或d3d8.dll放到游戏目录(不要两个都放)，带上情报类回路看。
-ed6Ex.dll供“三豪华整合dll功能”exe使用，兼容性应该更好。（三者用一个即可，原版exe不会调用ed6Ex.dll。）
+把dinput8.dll或dsound.dll或d3d8.dll（一个即可，前面的优先）放到游戏目录，带上情报类回路看。
 3rd掉落物品及概率、敌方战技名称 用魔法 次元上升、时间加速、心灵之霞 查看。
 可选功能用法见configEx.ini。
 
+
 其它说明:
 1. 状态变化并不会改变显示数值，(伤害、AT、命中)计算时才会加成
+
+
+无效的情况下：
+1. 请先确保是支持的版本
+2. 假定"abcd.dll"无效，新建文本文件改名为"abcd.dll"（注意扩展名确实改掉），看游戏能否启动，应该会正常启动，否则请再次确保1。
+（改注册表需谨慎，不懂不要弄，否则后果自负）
+删除注册表"HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Control\Session Manager\KnownDLLs"下对应abcd的项
+或者
+在注册表"HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Control\Session Manager"下新建“多字符串值”，
+名字为"ExcludeFromKnownDlls"(不含引号，下同)，内容新增"abcd.dll"
+
+然后 重启电脑即可。
+
 
 感谢：
 铁血
@@ -37,6 +51,13 @@ ed6Ex.dll供“三豪华整合dll功能”exe使用，兼容性应该更好。（三者用一个即可，原版e
 
 
 更新历史：
+2013-01-20:
+1. 移除ed6Ex.dll，添加dinput8.dll
+2. 修复Bandicam无法录像的问题
+3. 修复改能力值 比例设置过大溢出的问题，溢出取上限 下限
+4. 去除多个dll同时使用时的警告，加入了检测功能防止重复补丁
+5. dll加载方式变更
+
 2013-01-18:
 1. 添加ed6Ex.dll
 
