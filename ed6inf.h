@@ -15,7 +15,7 @@ LARGE_INTEGER lFrequency, lStopCounter, lStartCounter;
 typedef int (__cdecl *pSprintf)(char *_Dest, const char* _Format, ...);
 typedef ULONG (__cdecl *pGetAddr)(ULONG);
 
-
+__declspec(align(4))
 typedef struct
 {
 	int a;
@@ -95,6 +95,64 @@ BOOL WINAPI PeekMessageANew(LPMSG lpMsg, HWND hWnd, UINT wMsgFilterMin, UINT wMs
     }
 
     return bResult;
+}
+
+HMODULE
+WINAPI
+GetModuleHandleAOld(
+    LPCSTR lpModuleName
+    )
+{
+	ASM_DUMMY_AUTO();
+}
+
+HMODULE
+WINAPI
+GetModuleHandleWOld(
+    LPCWSTR lpModuleName
+    )
+{
+	ASM_DUMMY_AUTO();
+}
+
+HMODULE
+WINAPI
+GetModuleHandleANew(
+    LPCSTR lpModuleName
+    )
+{
+	if (lpModuleName == NULL)
+	{
+		return GetModuleHandleAOld(lpModuleName);
+	}
+	if(*(lpModuleName+1) == '3' && *(lpModuleName+3) == '8')
+	{
+		if (_stricmp(lpModuleName, "d3d8.dll") == 0 || _stricmp(lpModuleName, "d3d8") == 0)
+		{
+			return GetModuleHandleAOld("system32\\d3d8.dll");
+		}
+	}
+	return GetModuleHandleAOld(lpModuleName);
+}
+
+HMODULE
+WINAPI
+GetModuleHandleWNew(
+    LPCWSTR lpModuleName
+    )
+{
+	if (lpModuleName == NULL)
+	{
+		return GetModuleHandleWOld(lpModuleName);
+	}
+	if(*(lpModuleName+1) == L'3' && *(lpModuleName+3) == L'8')
+	{
+		if (_wcsicmp(lpModuleName, L"d3d8.dll") == 0 || _wcsicmp(lpModuleName, L"d3d8") == 0)
+		{
+			return GetModuleHandleWOld(L"system32\\d3d8.dll");
+		}
+	}
+	return GetModuleHandleWOld(lpModuleName);
 }
 
 namespace NED63
@@ -1937,6 +1995,16 @@ void Init()
 	//PrintConsoleW(L"%x %x\r\n", pFunOutputDebugStringA, PrintDebugStringA);
 	//PrintConsoleW(L"%x %x\r\n", hModule, hModuleKernel32);
 	//Nt_PatchMemory(NULL, 0, fApiHook, countof(fApiHook), hModule);
+#if D3D8_VERSION
+	HMODULE hModuleKernel32 = Nt_GetModuleHandle(L"kernel32.dll");
+	MEMORY_FUNCTION_PATCH f_global1[] =
+	{
+		INLINE_HOOK(Nt_GetProcAddress(hModuleKernel32, "GetModuleHandleW"), GetModuleHandleWNew, GetModuleHandleWOld),
+		INLINE_HOOK(Nt_GetProcAddress(hModuleKernel32, "GetModuleHandleA"), GetModuleHandleANew, GetModuleHandleAOld),
+	};
+	Nt_PatchMemory(NULL, 0, f_global1, countof(f_global1), hModule);
+#endif
+
 #if 0
 	if (1)
 	{
