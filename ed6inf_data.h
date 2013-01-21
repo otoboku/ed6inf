@@ -1,0 +1,6 @@
+namespace NED63
+{
+	unsigned char* pMemPatchShowAtData;
+	unsigned char pMemPatchShowAtDataNew[6] = { 0xE9, 0x2E, 0x01, 0x00, 0x00, 0x90 };
+	unsigned char pMemPatchShowAtDataOld[6] = { 0x8B, 0x86, 0x8C, 0x00, 0x00, 0x00 };
+}

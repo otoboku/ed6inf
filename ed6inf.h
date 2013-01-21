@@ -1,6 +1,7 @@
 #define MAGICSIZE 32
 
 #include "ed6_common.h"
+#include "ed6inf_data.h"
 #include "misc.h"
 
 bool  g_bShowExtraInfo = true;
@@ -26,6 +27,9 @@ structAB battleIcoRec = {16, 8};
 
 int		nDifficulty = 0;
 int		nSepithUpLimit = 0;
+int		nShowAT = 0;
+int		nShowConditionAT = 0;
+
 typedef struct
 {
 	INT	HP;
@@ -37,7 +41,7 @@ typedef struct
 	INT	DEX;
 	INT	AGL;
 	INT	MOV;
-	bool	ResistAbnormalStatus;
+	bool	ResistAbnormalCondition;
 	bool	ResistAbilityDown;
 } structStatusRate;
 
@@ -950,7 +954,7 @@ L01:
 			SaturateConvert(&pStatusSum->DEX, pStatusSum->DEX * statusRateUserDefined.DEX / 100);
 			SaturateConvert(&pStatusSum->AGL, pStatusSum->AGL * statusRateUserDefined.AGL / 100);
 			SaturateConvert(&pStatusSum->MOV, pStatusSum->MOV * statusRateUserDefined.MOV / 100);
-			if (statusRateUserDefined.ResistAbnormalStatus)
+			if (statusRateUserDefined.ResistAbnormalCondition)
 			{
 				((ED6_CHARACTER_BATTLE_INF*)addrSoldierNo0 + SoldierNo)->Resistance |= conditionAbnormal;
 			}
@@ -985,7 +989,7 @@ L01:
 			//SaturateConvert(&lpBattleInf->StatusSum.DEX, lpBattleInf->StatusSum.DEX * statusRateUserDefined.DEX / 100);
 			//SaturateConvert(&lpBattleInf->StatusSum.AGL, lpBattleInf->StatusSum.AGL * statusRateUserDefined.AGL / 100);
 			SaturateConvert(&lpBattleInf->StatusSum.MOV, lpBattleInf->StatusSum.MOV * statusRateUserDefined.MOV / 100);
-			if (statusRateUserDefined.ResistAbnormalStatus)
+			if (statusRateUserDefined.ResistAbnormalCondition)
 			{
 				lpBattleInf->Resistance |= conditionAbnormal;
 			}
@@ -1021,7 +1025,7 @@ L01:
 			SaturateConvertEx(&lpBattleInf->StatusSum.DEX, (INT64)lpBattleInf->StatusSum.DEX * statusRateUserDefined.DEX / 100, (SHORT)0xCCC);
 			SaturateConvertEx(&lpBattleInf->StatusSum.AGL, (INT64)lpBattleInf->StatusSum.AGL * statusRateUserDefined.AGL / 100, (SHORT)0xCCC);
 			SaturateConvert(&lpBattleInf->StatusSum.MOV, (INT64)lpBattleInf->StatusSum.MOV * statusRateUserDefined.MOV / 100);
-			if (statusRateUserDefined.ResistAbnormalStatus)
+			if (statusRateUserDefined.ResistAbnormalCondition)
 			{
 				lpBattleInf->Resistance |= conditionAbnormal;
 			}
@@ -1041,6 +1045,33 @@ L01:
 			call ed6ChangeEnemyStatus;
 			jmp addrChangeEnemyStatusPatch1;
 		}
+	}
+	int __cdecl ed6ShowConditionAtOld(USHORT AT, float x, float y, int a4)
+	{
+		ASM_DUMMY_AUTO();
+	}
+	int __cdecl ed6ShowConditionAtNew(USHORT AT, float x, float y, int a4)
+	{
+		if (nShowConditionAT == 1)
+		{
+			if (AT > 99)
+			{
+				AT =99;
+			}
+			if (AT < 10)
+			{
+				x += 9.0f; // 9+13
+			}
+			else
+			{
+				x += 4.5f;
+			}
+		}
+		x += 13.0f;
+		y += 2.0f;
+
+		return ed6ShowConditionAtOld(AT, x, y, a4);
+			
 	}
 }
 
@@ -1451,7 +1482,7 @@ L01:
 			SaturateConvertEx(&lpBattleInf->StatusSum.DEX, (INT64)lpBattleInf->StatusSum.DEX * statusRateUserDefined.DEX / 100, (SHORT)0xCCC);
 			SaturateConvertEx(&lpBattleInf->StatusSum.AGL, (INT64)lpBattleInf->StatusSum.AGL * statusRateUserDefined.AGL / 100, (SHORT)0xCCC);
 			SaturateConvert(&lpBattleInf->StatusSum.MOV, (INT64)lpBattleInf->StatusSum.MOV * statusRateUserDefined.MOV / 100);
-			if (statusRateUserDefined.ResistAbnormalStatus)
+			if (statusRateUserDefined.ResistAbnormalCondition)
 			{
 				lpBattleInf->Resistance |= conditionAbnormal;
 			}
@@ -1864,7 +1895,7 @@ L01:
 			SaturateConvertEx(&lpBattleInf->StatusSum.DEX, (INT64)lpBattleInf->StatusSum.DEX * statusRateUserDefined.DEX / 100, (SHORT)0xCCC);
 			SaturateConvertEx(&lpBattleInf->StatusSum.AGL, (INT64)lpBattleInf->StatusSum.AGL * statusRateUserDefined.AGL / 100, (SHORT)0xCCC);
 			SaturateConvert(&lpBattleInf->StatusSum.MOV, (INT64)lpBattleInf->StatusSum.MOV * statusRateUserDefined.MOV / 100);
-			if (statusRateUserDefined.ResistAbnormalStatus)
+			if (statusRateUserDefined.ResistAbnormalCondition)
 			{
 				lpBattleInf->Resistance |= conditionAbnormal;
 			}
@@ -1906,35 +1937,23 @@ void ConfigInit()
 		statusRateUserDefined.DEX = NINI::GetPrivateProfileIntA("Battle", "DEX", 100, szConfigExPath);
 		statusRateUserDefined.AGL = NINI::GetPrivateProfileIntA("Battle", "AGL", 100, szConfigExPath);
 		statusRateUserDefined.MOV = NINI::GetPrivateProfileIntA("Battle", "MOV", 100, szConfigExPath);
-		statusRateUserDefined.ResistAbnormalStatus = NINI::GetPrivateProfileBoolA("Battle", "ResistAbnormalStatus", false, szConfigExPath);
+		statusRateUserDefined.ResistAbnormalCondition = NINI::GetPrivateProfileBoolA("Battle", "ResistAbnormalCondition", false, szConfigExPath);
 		statusRateUserDefined.ResistAbilityDown = NINI::GetPrivateProfileBoolA("Battle", "ResistAbilityDown", false, szConfigExPath);
-		//statusRateUserDefined.ResistAbnormalStatus = NINI::GetPrivateProfileIntA("Battle", "ResistAbnormalStatus", 0, szConfigExPath);
-		//statusRateUserDefined.ResistAbilityDown = NINI::GetPrivateProfileIntA("Battle", "ResistAbilityDown", 0, szConfigExPath);
-		/*if (NINI::GetPrivateProfileIntA("Battle", "ResistAbnormalStatus", 0, szConfigExPath) == 0)
-		{
-			statusRateUserDefined.ResistAbnormalStatus = 0;
-		}
-		else
-		{
-			statusRateUserDefined.ResistAbnormalStatus = 1;
-		}
 
-		if (NINI::GetPrivateProfileIntA("Battle", "ResistAbilityDown", 0, szConfigExPath) == 0)
-		{
-			statusRateUserDefined.ResistAbilityDown = 0;
-		}
-		else
-		{
-			statusRateUserDefined.ResistAbilityDown = 1;
-		}*/
 	}
 
 	nSepithUpLimit = NINI::GetPrivateProfileIntA("Battle", "SepithUpLimit", 0, szConfigExPath);
 	SaturateConvertEx(&nSepithUpLimit, nSepithUpLimit, 9999, 0);
+	nShowAT = NINI::GetPrivateProfileIntA("Battle", "ShowAT", 1, szConfigExPath);
+	if (nShowAT < 0 || nShowAT > 2)	nShowAT = 1;
+	nShowConditionAT = NINI::GetPrivateProfileIntA("Battle", "ShowConditionAT", 1, szConfigExPath);
+	if (nShowConditionAT < 0 || nShowConditionAT > 2)	nShowConditionAT = 1;
+	if (nShowConditionAT == 2)	nShowConditionAT = 3;
 }
 
 void Init()
 {
+#if 1
 	enum GameVersion {	ed61cn7, ed62cn7, ed63cn7, 
 						ed61jp7, ed62jp7, ed63jp7,
 						ed61jp1, ed62jp1, ed63jp1002, ed62jp1020, } gameVersion;
@@ -2020,12 +2039,35 @@ void Init()
 	}
 #endif
 
+#endif //ÕÛµþ
+
 	if (gameVersion == ed63cn7)
 	{
 		using namespace NED63;
 		if (nSepithUpLimit == 0) nSepithUpLimit = 300;
 
 		if (*(unsigned char*)addrChangeEnemyStatusPatch0 != 0xE8)	return;	//0xE8 call 0xE9 jump; ·ÀÖ¹ÖØ¸´²¹¶¡
+
+		if (nShowAT != 0)	// ÏÔAT
+		{
+			__asm OR BYTE PTR DS:[0x2DA4DD8],0x1;
+			if (nShowAT == 1)
+			{
+				pMemPatchShowAtData = pMemPatchShowAtDataNew;
+			}
+			else
+			{
+				pMemPatchShowAtData = pMemPatchShowAtDataOld;
+			}
+
+			MEMORY_PATCH memPatchShowAT[] =
+			{
+				PATCH_MEMORY(pMemPatchShowAtData,	6, 0x0043CF5F -0x00400000),	// AT ÏÔÊ¾¼õÉÙ»Ö¸´
+			};
+			Nt_PatchMemory(memPatchShowAT, countof(memPatchShowAT), NULL, 0, hModule);
+
+		}
+
 		MEMORY_PATCH p[] =
 		{
 			PATCH_MEMORY(0x643525,	4, 0x1B73A0),	// Exp %4d->%5d
@@ -2039,6 +2081,9 @@ void Init()
 			PATCH_MEMORY(0x00,      1, 0x0061BE),	// up board
 			PATCH_MEMORY(nSepithUpLimit,	4, 0x00408E97 -0x00400000),
 			PATCH_MEMORY(nSepithUpLimit,	4, 0x00406F98 -0x00400000),
+			PATCH_MEMORY(0x5A33F0,	4, 0x0041C672 -0x00400000),	// ×´Ì¬ATµ÷Õû»Ö¸´
+			PATCH_MEMORY(0x5A33F0,	4, 0x0041C67F -0x00400000),	// ×´Ì¬ATµ÷Õû»Ö¸´
+			PATCH_MEMORY((ULONG_PTR)&nShowConditionAT,	4, 0x0041C643 -0x00400000),	// ÊÇ·ñÏÔ×´Ì¬AT
 
 			PATCH_MEMORY(0x01,      1, 0x004A64D3 -0x00400000),	// LG_Font2
 			//PATCH_MEMORY(0xEB,      1, 0x004A64D4 -0x00400000),	// LG_Font1
@@ -2059,6 +2104,7 @@ void Init()
 			PATCH_FUNCTION(JUMP, NOT_RVA, addrDisplayGetPar0,			ed6DisplayGetPar, 0, ed6DisplayGetParOld),
 			PATCH_FUNCTION(JUMP, NOT_RVA, addrChangeEnemyStatusPatch0,	ed6ChangeEnemyStatusPatch, 0),
 			PATCH_FUNCTION(CALL, NOT_RVA, 0x00446DDF,	ed6DisplayBattleSepith, 0),
+			PATCH_FUNCTION(JUMP, NOT_RVA, 0x0048D310,	ed6ShowConditionAtNew, 5, ed6ShowConditionAtOld),
 			//	INLINE_HOOK(Nt_GetProcAddress(Nt_GetModuleHandle(L"kernel32.dll"), "OutputDebugStringA"), PrintDebugStringA, NULL),
 		};
 		Nt_PatchMemory(p, countof(p), f, countof(f), hModule);
@@ -2111,6 +2157,27 @@ void Init()
 		addrChangeEnemyStatusPatch2 = 0x004A36A0; // call
 
 		if (*(unsigned char*)addrChangeEnemyStatusPatch0 != 0xE8)	return;	//0xE8 call 0xE9 jump; ·ÀÖ¹ÖØ¸´²¹¶¡
+
+		if (nShowAT != 0)	// ÏÔAT
+		{
+			__asm OR BYTE PTR DS:[0x2DA2424],0x1;
+			if (nShowAT == 1)
+			{
+				pMemPatchShowAtData = pMemPatchShowAtDataNew;
+			}
+			else
+			{
+				pMemPatchShowAtData = pMemPatchShowAtDataOld;
+			}
+
+			MEMORY_PATCH memPatchShowAT[] =
+			{
+				PATCH_MEMORY(pMemPatchShowAtData,	6, 0x0043CA4F -0x00400000),	// AT ÏÔÊ¾¼õÉÙ»Ö¸´
+			};
+			Nt_PatchMemory(memPatchShowAT, countof(memPatchShowAT), NULL, 0, hModule);
+
+		}
+
 		MEMORY_PATCH p[] =
 		{
 			PATCH_MEMORY(0x643525,	4, 0x1B186C),	// Exp %4d->%5d
@@ -2124,6 +2191,7 @@ void Init()
 			PATCH_MEMORY(0x00,      1, 0x0061CE),	// up board
 			PATCH_MEMORY(nSepithUpLimit,	4, 0x00408EA7 -0x00400000),
 			PATCH_MEMORY(nSepithUpLimit,	4, 0x00406FA8 -0x00400000),
+			PATCH_MEMORY((ULONG_PTR)&nShowConditionAT,	4, 0x0041C393 -0x00400000),	// ÊÇ·ñÏÔ×´Ì¬AT
 		};
 
 		MEMORY_FUNCTION_PATCH f[] =
@@ -2136,6 +2204,7 @@ void Init()
 			PATCH_FUNCTION(JUMP, NOT_RVA, addrDisplayResetWidth0,		ed6DisplayResetWidth, 0, ed6DisplayResetWidthOld), // jp ver only
 			PATCH_FUNCTION(JUMP, NOT_RVA, addrChangeEnemyStatusPatch0,	ed6ChangeEnemyStatusPatch, 0),
 			PATCH_FUNCTION(CALL, NOT_RVA, 0x0044677F,	ed6DisplayBattleSepith, 0),
+			PATCH_FUNCTION(JUMP, NOT_RVA, 0x0048C710,	ed6ShowConditionAtNew, 5, ed6ShowConditionAtOld),
 			//	INLINE_HOOK(Nt_GetProcAddress(Nt_GetModuleHandle(L"kernel32.dll"), "OutputDebugStringA"), PrintDebugStringA, NULL),
 		};
 		Nt_PatchMemory(p, countof(p), f, countof(f), hModule);
@@ -2143,6 +2212,7 @@ void Init()
 	else if (gameVersion == ed63jp1002) // ÀÏ°æjp ¼° ·Âp
 	{
 		using namespace NED63;
+		if (nSepithUpLimit == 0) nSepithUpLimit = 300;
 
 		NED63::sprintf = (pSprintf) 0x0058BEEF;
 		getItemInf = (pGetAddr) 0x0049F520;
@@ -2202,13 +2272,33 @@ void Init()
 			Nt_PatchMemory(NULL, 0, f1, countof(f1), hModule);
 		}
 
+		if (nShowAT != 0)	// ÏÔAT
+		{
+			__asm OR BYTE PTR DS:[0x2DA098C],0x1;
+			if (nShowAT == 1)
+			{
+				pMemPatchShowAtData = pMemPatchShowAtDataNew;
+			}
+			else
+			{
+				pMemPatchShowAtData = pMemPatchShowAtDataOld;
+			}
+
+			MEMORY_PATCH memPatchShowAT[] =
+			{
+				PATCH_MEMORY(pMemPatchShowAtData,	6, 0x0043CA3F -0x00400000),	// AT ÏÔÊ¾¼õÉÙ»Ö¸´
+			};
+			Nt_PatchMemory(memPatchShowAT, countof(memPatchShowAT), NULL, 0, hModule);
+
+		}
+
 		MEMORY_PATCH p[] =
 		{
 			PATCH_MEMORY(p0044A548,	9, 0x04A548),	// ·Âp»Ö¸´
 			//PATCH_MEMORY(0xB4,		1, 0x04A041),	// ·Âp»Ö¸´ condition
 			PATCH_MEMORY(p00528A34,	5, 0x128A34),	// ·Âp»Ö¸´ display + 0xF8
 			PATCH_MEMORY(0x00,		1, 0x04A3C5),	// ·Âp»Ö¸´ Exp -6
-			PATCH_MEMORY(p0043CA3F,	6, 0x03CA3F),	// AT ÏÔÊ¾¼õÉÙ
+			//PATCH_MEMORY(p0043CA3F,	6, 0x03CA3F),	// AT ÏÔÊ¾¼õÉÙ
 
 			PATCH_MEMORY(0x643525,	4, 0x1B186C),	// Exp %4d->%5d
 			PATCH_MEMORY(0xD4,		1, 0x04A2F7),	// CP %3d->%6d, use HP's
@@ -2221,6 +2311,7 @@ void Init()
 			PATCH_MEMORY(0x00,      1, 0x0061CE),	// up board
 			PATCH_MEMORY(nSepithUpLimit,	4, 0x00408EA7 -0x00400000),
 			PATCH_MEMORY(nSepithUpLimit,	4, 0x00406FA8 -0x00400000),
+			PATCH_MEMORY((ULONG_PTR)&nShowConditionAT,	4, 0x0041C393 -0x00400000),	// ÊÇ·ñÏÔ×´Ì¬AT
 		};
 
 		MEMORY_FUNCTION_PATCH f[] =
@@ -2232,6 +2323,7 @@ void Init()
 			PATCH_FUNCTION(JUMP, NOT_RVA, addrDisplayGetPar0,			ed6DisplayGetPar, 0, ed6DisplayGetParOld),
 			PATCH_FUNCTION(JUMP, NOT_RVA, addrChangeEnemyStatusPatch0,	ed6ChangeEnemyStatusPatch, 0),
 			PATCH_FUNCTION(CALL, NOT_RVA, 0x0044677F,	ed6DisplayBattleSepith, 0),
+			PATCH_FUNCTION(JUMP, NOT_RVA, 0x0048C4B0,	ed6ShowConditionAtNew, 5, ed6ShowConditionAtOld),
 			//PATCH_FUNCTION(JUMP, NOT_RVA, addrDisplayResetWidth0,		ed6DisplayResetWidth, 0, ed6DisplayResetWidthOld), // jp ver only
 			//	INLINE_HOOK(Nt_GetProcAddress(Nt_GetModuleHandle(L"kernel32.dll"), "OutputDebugStringA"), PrintDebugStringA, NULL),
 		};

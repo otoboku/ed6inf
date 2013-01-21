@@ -401,6 +401,7 @@
     <ClCompile Include="ed6inf.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="ed6inf_data.h" />
     <ClInclude Include="ed6_common.h" />
     <ClInclude Include="ed6inf.h" />
     <ClInclude Include="misc.h" />
