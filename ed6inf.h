@@ -1046,11 +1046,11 @@ L01:
 			jmp addrChangeEnemyStatusPatch1;
 		}
 	}
-	int __cdecl ed6ShowConditionAtOld(USHORT AT, float x, float y, int a4)
+	int __cdecl ed6ShowConditionAtOld(ULONG AT, float x, float y, ULONG a4)
 	{
 		ASM_DUMMY_AUTO();
 	}
-	int __cdecl ed6ShowConditionAtNew(USHORT AT, float x, float y, int a4)
+	int __cdecl ed6ShowConditionAtNew(ULONG AT, float x, float y, ULONG a4)
 	{
 		if (nShowConditionAT == 1)
 		{
@@ -1060,7 +1060,7 @@ L01:
 			}
 			if (AT < 10)
 			{
-				x += 9.0f; // 9+13
+				x += 9.0f;
 			}
 			else
 			{
@@ -1503,6 +1503,33 @@ L01:
 			jmp addrChangeEnemyStatusPatch1;
 		}
 	}
+
+	int __cdecl ed6ShowConditionAtOld(ULONG AT, float x, float y, float width, float height, ULONG a6, ULONG a7, ULONG a8)
+	{
+		ASM_DUMMY_AUTO();
+	}
+	int __cdecl ed6ShowConditionAtNew(ULONG AT, float x, float y, float width, float height, ULONG a6, ULONG a7, ULONG a8)
+	{
+		if (nShowConditionAT == 1)
+		{
+			if (AT > 99)
+			{
+				AT =99;
+			}
+			if (AT < 10)
+			{
+				x += -8.f;
+			}
+			else
+			{
+				x += -4.f;
+			}
+		}
+		x += -2.0f;
+		y += 2.0f;
+
+		return ed6ShowConditionAtOld(AT, x, y, width, height, a6, a7, a8);		
+	}
 }
 
 namespace NED61
@@ -1915,6 +1942,36 @@ L01:
 			call ed6ChangeEnemyStatus;
 			jmp addrChangeEnemyStatusPatch1;
 		}
+	}
+
+	int __cdecl ed6ShowConditionAtOld(ULONG AT, float x, float y, float width, float height, ULONG a6, ULONG a7, ULONG a8)
+	{
+		ASM_DUMMY_AUTO();
+	}
+	int __cdecl ed6ShowConditionAtNew(ULONG AT, float x, float y, float width, float height, ULONG a6, ULONG a7, ULONG a8)
+	{
+		if (nShowConditionAT == 1)
+		{
+			width = 9.0f;
+			height = 9.0f;
+
+			if (AT > 99)
+			{
+				AT =99;
+			}
+			if (AT < 10)
+			{
+				x += -13.f;
+			}
+			else
+			{
+				x += -8.f;
+			}
+		}
+		x += -1.0f;
+		y += 1.0f;
+
+		return ed6ShowConditionAtOld(AT, x, y, width, height, a6, a7, a8);		
 	}
 }
 
@@ -2335,6 +2392,27 @@ void Init()
 		if (nSepithUpLimit == 0) nSepithUpLimit = 70;
 
 		if (*(unsigned char*)addrChangeEnemyStatusPatch0 != 0xE8)	return;	//0xE8 call 0xE9 jump; ·ÀÖ¹ÖØ¸´²¹¶¡
+
+		if (nShowAT != 0)	// ÏÔAT
+		{
+			__asm OR BYTE PTR DS:[0x2EE0D5E],0x1;
+			if (nShowAT == 1)
+			{
+				pMemPatchShowAtData = pMemPatchShowAtDataNew;
+			}
+			else
+			{
+				pMemPatchShowAtData = pMemPatchShowAtDataOld;
+			}
+
+			MEMORY_PATCH memPatchShowAT[] =
+			{
+				PATCH_MEMORY(pMemPatchShowAtData,	6, 0x00433DC9 -0x00400000),	// AT ÏÔÊ¾¼õÉÙ»Ö¸´
+			};
+			Nt_PatchMemory(memPatchShowAT, countof(memPatchShowAT), NULL, 0, hModule);
+
+		}
+
 		MEMORY_PATCH p[] =
 		{
 			PATCH_MEMORY(0x643525,	4, 0x15C168),	// Exp %4d->%5d
@@ -2343,6 +2421,9 @@ void Init()
 			PATCH_MEMORY(0x30,      1, 0x041156),	// height
 			PATCH_MEMORY(0x00,      1, 0x005F96),	// up board
 			PATCH_MEMORY(nSepithUpLimit,	4, 0x00408A97 -0x00400000),
+			PATCH_MEMORY(0x54A330,	4, 0x00419A36 -0x00400000),	// ×´Ì¬ATµ÷Õû»Ö¸´
+			PATCH_MEMORY(0x54A330,	4, 0x00419A43 -0x00400000),	// ×´Ì¬ATµ÷Õû»Ö¸´
+			PATCH_MEMORY((ULONG_PTR)&nShowConditionAT,	4, 0x004199F9 -0x00400000),	// ÊÇ·ñÏÔ×´Ì¬AT
 
 			PATCH_MEMORY(0x01,      1, 0x004CBA86 -0x00400000),	// LG_Font2
 			//PATCH_MEMORY(0xEB,      1, 0x004CBA87 -0x00400000),	// LG_Font1
@@ -2360,6 +2441,7 @@ void Init()
 			PATCH_FUNCTION(CALL, NOT_RVA, addrDisplayBattleIcoEx0,		NED63::ed6DisplayBattleIcoEx, 1),
 			PATCH_FUNCTION(JUMP, NOT_RVA, addrDisplayStatusPatch0,		ed6DisplayStatusPatch, 0),
 			PATCH_FUNCTION(JUMP, NOT_RVA, addrChangeEnemyStatusPatch0,	ed6ChangeEnemyStatusPatch, 0),
+			PATCH_FUNCTION(JUMP, NOT_RVA, 0x004A9FD0,	ed6ShowConditionAtNew, 5, ed6ShowConditionAtOld),
 			//	INLINE_HOOK(Nt_GetProcAddress(Nt_GetModuleHandle(L"kernel32.dll"), "OutputDebugStringA"), PrintDebugStringA, NULL),
 		};
 		Nt_PatchMemory(p, countof(p), f, countof(f), hModule);
@@ -2400,6 +2482,27 @@ void Init()
 		addrChangeEnemyStatusPatch2 = 0x004CCF00; // call
 
 		if (*(unsigned char*)addrChangeEnemyStatusPatch0 != 0xE8)	return;	//0xE8 call 0xE9 jump; ·ÀÖ¹ÖØ¸´²¹¶¡
+
+		if (nShowAT != 0)	// ÏÔAT
+		{
+			__asm OR BYTE PTR DS:[0x2EE2212],0x1;
+			if (nShowAT == 1)
+			{
+				pMemPatchShowAtData = pMemPatchShowAtDataNew;
+			}
+			else
+			{
+				pMemPatchShowAtData = pMemPatchShowAtDataOld;
+			}
+
+			MEMORY_PATCH memPatchShowAT[] =
+			{
+				PATCH_MEMORY(pMemPatchShowAtData,	6, 0x00433A19 -0x00400000),	// AT ÏÔÊ¾¼õÉÙ»Ö¸´
+			};
+			Nt_PatchMemory(memPatchShowAT, countof(memPatchShowAT), NULL, 0, hModule);
+
+		}
+
 		MEMORY_PATCH p[] =
 		{
 			PATCH_MEMORY(0x643525,	4, 0x15B644),	// Exp %4d->%5d
@@ -2408,6 +2511,7 @@ void Init()
 			PATCH_MEMORY(0x30,      1, 0x040D16),	// height
 			PATCH_MEMORY(0x00,      1, 0x005F96),	// up board
 			PATCH_MEMORY(nSepithUpLimit,	4, 0x00408A97 -0x00400000),
+			PATCH_MEMORY((ULONG_PTR)&nShowConditionAT,	4, 0x004197F9 -0x00400000),	// ÊÇ·ñÏÔ×´Ì¬AT
 
 		};
 
@@ -2417,6 +2521,7 @@ void Init()
 			PATCH_FUNCTION(CALL, NOT_RVA, addrDisplayBattleIcoEx0,		NED63::ed6DisplayBattleIcoEx, 1),
 			PATCH_FUNCTION(JUMP, NOT_RVA, addrDisplayStatusPatch0,		ed6DisplayStatusPatch, 0),
 			PATCH_FUNCTION(JUMP, NOT_RVA, addrChangeEnemyStatusPatch0,	ed6ChangeEnemyStatusPatch, 0),
+			PATCH_FUNCTION(JUMP, NOT_RVA, 0x004A9970,	ed6ShowConditionAtNew, 5, ed6ShowConditionAtOld),
 			//	INLINE_HOOK(Nt_GetProcAddress(Nt_GetModuleHandle(L"kernel32.dll"), "OutputDebugStringA"), PrintDebugStringA, NULL),
 		};
 		Nt_PatchMemory(p, countof(p), f, countof(f), hModule);
@@ -2476,11 +2581,35 @@ void Init()
 			Nt_PatchMemory(NULL, 0, f1, countof(f1), hModule);
 		}
 
+		if (nShowAT != 0)	// ÏÔAT
+		{
+			__asm OR BYTE PTR DS:[0x2EDF77A],0x1;
+			if (nShowAT == 1)
+			{
+				pMemPatchShowAtData = pMemPatchShowAtDataNew;
+			}
+			else
+			{
+				pMemPatchShowAtData = pMemPatchShowAtDataOld;
+			}
+
+			MEMORY_PATCH memPatchShowAT[] =
+			{
+				PATCH_MEMORY(pMemPatchShowAtData,	6, 0x004339F9 -0x00400000),	// AT ÏÔÊ¾¼õÉÙ»Ö¸´
+			};
+			Nt_PatchMemory(memPatchShowAT, countof(memPatchShowAT), NULL, 0, hModule);
+
+		}
+
 		if (*(UINT*)0x004413BC == 0x02CFE5DB) // ÀíÖ®²¹¶¡ atµ÷ÕûÎªÒ»ÁÐ
 		{
+			if (nShowConditionAT != 0)
+			{
+				__asm OR BYTE PTR DS:[0x2EDF77C],0x1;
+			}
 			MEMORY_PATCH p1[] =
 			{
-				PATCH_MEMORY(p004339F9,	6, 0x0339F9),	// AT ÏÔÊ¾¼õÉÙ
+				//PATCH_MEMORY(p004339F9,	6, 0x0339F9),	// AT ÏÔÊ¾¼õÉÙ
 				PATCH_MEMORY(0x00077201,4, 0x004D0F1B -0x00400000),	// CPUtest
 				PATCH_MEMORY(p004CDEE2,	sizeof(p004CDEE2), 0x004CDEE2 -0x00400000), // CPUÊÖ²á
 				PATCH_MEMORY(p00548120,	sizeof(p00548120), 0x00548120 -0x00400000), // new Code
@@ -2504,8 +2633,9 @@ void Init()
 			PATCH_MEMORY(0x30,      1, 0x040C66),	// height
 			PATCH_MEMORY(0x00,      1, 0x005F96),	// up board
 			PATCH_MEMORY(nSepithUpLimit,	4, 0x00408A97 -0x00400000),
+			PATCH_MEMORY((ULONG_PTR)&nShowConditionAT,	4, 0x00419809 -0x00400000),	// ÊÇ·ñÏÔ×´Ì¬AT
 
-			PATCH_MEMORY(p004339F9,	6, 0x0339F9),	// AT ÏÔÊ¾¼õÉÙ
+			//PATCH_MEMORY(p004339F9,	6, 0x0339F9),	// AT ÏÔÊ¾¼õÉÙ
 			PATCH_MEMORY(0x36,		1, 0x004C6B54 -0x00400000),	// CPU»Ö¸´
 			PATCH_MEMORY(0x00145FD2,4, 0x0040215E -0x00400000),	// CPUÕ½¶·
 			PATCH_MEMORY(0x00077201,4, 0x004D0F1B -0x00400000),	// CPUtest
@@ -2520,6 +2650,7 @@ void Init()
 			PATCH_FUNCTION(CALL, NOT_RVA, addrDisplayBattleIcoEx0,		NED63::ed6DisplayBattleIcoEx, 1),
 			PATCH_FUNCTION(JUMP, NOT_RVA, addrDisplayStatusPatch0,		ed6DisplayStatusPatch, 0),
 			PATCH_FUNCTION(JUMP, NOT_RVA, addrChangeEnemyStatusPatch0,	ed6ChangeEnemyStatusPatch, 0),
+			PATCH_FUNCTION(JUMP, NOT_RVA, 0x004A9530,	ed6ShowConditionAtNew, 5, ed6ShowConditionAtOld),
 			//	INLINE_HOOK(Nt_GetProcAddress(Nt_GetModuleHandle(L"kernel32.dll"), "OutputDebugStringA"), PrintDebugStringA, NULL),
 		};
 		Nt_PatchMemory(p, countof(p), f, countof(f), hModule);
@@ -2530,6 +2661,27 @@ void Init()
 		if (nSepithUpLimit == 0) nSepithUpLimit = 70;
 
 		if (*(unsigned char*)addrChangeEnemyStatusPatch0 != 0xE8)	return;	//0xE8 call 0xE9 jump; ·ÀÖ¹ÖØ¸´²¹¶¡
+
+		if (nShowAT != 0)	// ÏÔAT
+		{
+			__asm OR BYTE PTR DS:[0x18FC9D4],0x1;
+			if (nShowAT == 1)
+			{
+				pMemPatchShowAtData = pMemPatchShowAtDataNew;
+			}
+			else
+			{
+				pMemPatchShowAtData = pMemPatchShowAtDataOld;
+			}
+
+			MEMORY_PATCH memPatchShowAT[] =
+			{
+				PATCH_MEMORY(pMemPatchShowAtData,	8, 0x004286C3 -0x00400000),	// AT ÏÔÊ¾¼õÉÙ»Ö¸´
+			};
+			Nt_PatchMemory(memPatchShowAT, countof(memPatchShowAT), NULL, 0, hModule);
+
+		}
+
 		MEMORY_PATCH p[] =
 		{
 			PATCH_MEMORY(0x643525,	4, 0x11A214),	// Exp %4d->%5d
@@ -2538,6 +2690,9 @@ void Init()
 			PATCH_MEMORY(0x30,      1, 0x033F76),	// height
 			PATCH_MEMORY(0x00,      1, 0x0054D2),	// up board
 			PATCH_MEMORY(nSepithUpLimit,	4, 0x00407D07 -0x00400000),
+			PATCH_MEMORY(0x50C2FC,	4, 0x0041454A -0x00400000),	// ×´Ì¬ATµ÷Õû»Ö¸´
+			PATCH_MEMORY(0x50C2FC,	4, 0x00414557 -0x00400000),	// ×´Ì¬ATµ÷Õû»Ö¸´
+			PATCH_MEMORY((ULONG_PTR)&nShowConditionAT,	4, 0x0041450D -0x00400000),	// ÊÇ·ñÏÔ×´Ì¬AT
 
 			//PATCH_MEMORY(0x01,      1, 0x004CBA86 -0x00400000),	// LG_Font2
 			//PATCH_MEMORY(0xEB,      1, 0x004AC469 -0x00400000),	// LG_Font1
@@ -2555,6 +2710,7 @@ void Init()
 			PATCH_FUNCTION(CALL, NOT_RVA, addrDisplayBattleIcoEx0,		NED63::ed6DisplayBattleIcoEx, 1),
 			PATCH_FUNCTION(JUMP, NOT_RVA, addrDisplayStatusPatch0,		ed6DisplayStatusPatch, 0),
 			PATCH_FUNCTION(JUMP, NOT_RVA, addrChangeEnemyStatusPatch0,	ed6ChangeEnemyStatusPatch, 0),
+			PATCH_FUNCTION(JUMP, NOT_RVA, 0x00490A50,	ed6ShowConditionAtNew, 5, ed6ShowConditionAtOld),
 			// INLINE_HOOK(Nt_GetProcAddress(Nt_GetModuleHandle(L"kernel32.dll"), "OutputDebugStringA"), PrintDebugStringA, NULL),
 		};
 		Nt_PatchMemory(p, countof(p), f, countof(f), hModule);
@@ -2595,6 +2751,27 @@ void Init()
 		addrChangeEnemyStatusPatch2 = 0x004AE440; // call
 
 		if (*(unsigned char*)addrChangeEnemyStatusPatch0 != 0xE8)	return;	//0xE8 call 0xE9 jump; ·ÀÖ¹ÖØ¸´²¹¶¡
+
+		if (nShowAT != 0)	// ÏÔAT
+		{
+			__asm OR BYTE PTR DS:[0x18FF474],0x1;
+			if (nShowAT == 1)
+			{
+				pMemPatchShowAtData = pMemPatchShowAtDataNew;
+			}
+			else
+			{
+				pMemPatchShowAtData = pMemPatchShowAtDataOld;
+			}
+
+			MEMORY_PATCH memPatchShowAT[] =
+			{
+				PATCH_MEMORY(pMemPatchShowAtData,	8, 0x004284D3 -0x00400000),	// AT ÏÔÊ¾¼õÉÙ»Ö¸´
+			};
+			Nt_PatchMemory(memPatchShowAT, countof(memPatchShowAT), NULL, 0, hModule);
+
+		}
+
 		MEMORY_PATCH p[] =
 		{
 			PATCH_MEMORY(0x643525,	4, 0x11A694),	// Exp %4d->%5d
@@ -2603,6 +2780,7 @@ void Init()
 			PATCH_MEMORY(0x30,      1, 0x033C46),	// height
 			PATCH_MEMORY(0x00,      1, 0x0054D2),	// up board
 			PATCH_MEMORY(nSepithUpLimit,	4, 0x00407D17 -0x00400000),
+			PATCH_MEMORY((ULONG_PTR)&nShowConditionAT,	4, 0x0041439D -0x00400000),	// ÊÇ·ñÏÔ×´Ì¬AT
 		};
 
 		MEMORY_FUNCTION_PATCH f[] =
@@ -2611,6 +2789,7 @@ void Init()
 			PATCH_FUNCTION(CALL, NOT_RVA, addrDisplayBattleIcoEx0,		NED63::ed6DisplayBattleIcoEx, 1),
 			PATCH_FUNCTION(JUMP, NOT_RVA, addrDisplayStatusPatch0,		ed6DisplayStatusPatch, 0),
 			PATCH_FUNCTION(JUMP, NOT_RVA, addrChangeEnemyStatusPatch0,	ed6ChangeEnemyStatusPatch, 0),
+			PATCH_FUNCTION(JUMP, NOT_RVA, 0x00490930,	ed6ShowConditionAtNew, 5, ed6ShowConditionAtOld),
 			// INLINE_HOOK(Nt_GetProcAddress(Nt_GetModuleHandle(L"kernel32.dll"), "OutputDebugStringA"), PrintDebugStringA, NULL),
 		};
 		Nt_PatchMemory(p, countof(p), f, countof(f), hModule);
