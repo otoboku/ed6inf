@@ -256,11 +256,13 @@ bool Load()
 	return true;
 }
 
+HMODULE hModuleSelf;
 
 BOOL WINAPI DllMain(HINSTANCE hInstance, ULONG Reason, LPVOID lpReserved)
 {
     UNREFERENCED_PARAMETER(lpReserved);
-	
+	hModuleSelf = hInstance;
+
     switch (Reason)
     {
 	case DLL_PROCESS_ATTACH:

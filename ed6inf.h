@@ -1046,32 +1046,32 @@ L01:
 			jmp addrChangeEnemyStatusPatch1;
 		}
 	}
-	int __cdecl ed6ShowConditionAtOld(ULONG AT, float x, float y, ULONG a4)
+	void __cdecl ed6ShowConditionAtOld(ULONG AT, float x, float y, ULONG a4)
 	{
 		ASM_DUMMY_AUTO();
 	}
-	int __cdecl ed6ShowConditionAtNew(ULONG AT, float x, float y, ULONG a4)
+	void __cdecl ed6ShowConditionAtNew(ULONG AT, float x, float y, ULONG a4)
 	{
-		if (nShowConditionAT == 1)
+		if (nShowConditionAT != 5)
 		{
 			if (AT > 99)
 			{
+				if (nShowConditionAT == 1) return;
 				AT =99;
 			}
 			if (AT < 10)
 			{
-				x += 9.0f;
+				x += 8.0f;
 			}
 			else
 			{
-				x += 4.5f;
+				x += 3.5f;
 			}
 		}
-		x += 13.0f;
+		x += 14.0f;
 		y += 2.0f;
 
-		return ed6ShowConditionAtOld(AT, x, y, a4);
-			
+		ed6ShowConditionAtOld(AT, x, y, a4);			
 	}
 }
 
@@ -1504,16 +1504,17 @@ L01:
 		}
 	}
 
-	int __cdecl ed6ShowConditionAtOld(ULONG AT, float x, float y, float width, float height, ULONG a6, ULONG a7, ULONG a8)
+	void __cdecl ed6ShowConditionAtOld(ULONG AT, float x, float y, float width, float height, ULONG a6, ULONG a7, ULONG a8)
 	{
 		ASM_DUMMY_AUTO();
 	}
-	int __cdecl ed6ShowConditionAtNew(ULONG AT, float x, float y, float width, float height, ULONG a6, ULONG a7, ULONG a8)
+	void __cdecl ed6ShowConditionAtNew(ULONG AT, float x, float y, float width, float height, ULONG a6, ULONG a7, ULONG a8)
 	{
-		if (nShowConditionAT == 1)
+		if (nShowConditionAT != 5)
 		{
 			if (AT > 99)
 			{
+				if (nShowConditionAT == 1) return;
 				AT =99;
 			}
 			if (AT < 10)
@@ -1528,7 +1529,7 @@ L01:
 		x += -2.0f;
 		y += 2.0f;
 
-		return ed6ShowConditionAtOld(AT, x, y, width, height, a6, a7, a8);		
+		ed6ShowConditionAtOld(AT, x, y, width, height, a6, a7, a8);
 	}
 }
 
@@ -1944,34 +1945,36 @@ L01:
 		}
 	}
 
-	int __cdecl ed6ShowConditionAtOld(ULONG AT, float x, float y, float width, float height, ULONG a6, ULONG a7, ULONG a8)
+	void __cdecl ed6ShowConditionAtOld(ULONG AT, float x, float y, float width, float height, ULONG a6, ULONG a7, ULONG a8)
 	{
 		ASM_DUMMY_AUTO();
 	}
-	int __cdecl ed6ShowConditionAtNew(ULONG AT, float x, float y, float width, float height, ULONG a6, ULONG a7, ULONG a8)
+	void __cdecl ed6ShowConditionAtNew(ULONG AT, float x, float y, float width, float height, ULONG a6, ULONG a7, ULONG a8)
 	{
-		if (nShowConditionAT == 1)
+		if (nShowConditionAT != 5)
 		{
-			width = 9.0f;
-			height = 9.0f;
-
 			if (AT > 99)
 			{
+				if (nShowConditionAT == 1) return;
 				AT =99;
 			}
+
 			if (AT < 10)
 			{
 				x += -13.f;
 			}
 			else
 			{
-				x += -8.f;
+				x += -8.5f;
 			}
+
+			width = 9.0f;
+			height = 9.0f;
 		}
 		x += -1.0f;
 		y += 1.0f;
 
-		return ed6ShowConditionAtOld(AT, x, y, width, height, a6, a7, a8);		
+		ed6ShowConditionAtOld(AT, x, y, width, height, a6, a7, a8);
 	}
 }
 
@@ -2004,8 +2007,7 @@ void ConfigInit()
 	nShowAT = NINI::GetPrivateProfileIntA("Battle", "ShowAT", 1, szConfigExPath);
 	if (nShowAT < 0 || nShowAT > 2)	nShowAT = 1;
 	nShowConditionAT = NINI::GetPrivateProfileIntA("Battle", "ShowConditionAT", 1, szConfigExPath);
-	if (nShowConditionAT < 0 || nShowConditionAT > 2)	nShowConditionAT = 1;
-	if (nShowConditionAT == 2)	nShowConditionAT = 3;
+	if (nShowConditionAT != 0 && nShowConditionAT != 3 && nShowConditionAT != 5)	nShowConditionAT = 1;
 }
 
 void Init()
@@ -2072,13 +2074,19 @@ void Init()
 	//PrintConsoleW(L"%x %x\r\n", hModule, hModuleKernel32);
 	//Nt_PatchMemory(NULL, 0, fApiHook, countof(fApiHook), hModule);
 #if D3D8_VERSION
-	HMODULE hModuleKernel32 = Nt_GetModuleHandle(L"kernel32.dll");
-	MEMORY_FUNCTION_PATCH f_global1[] =
+	extern HMODULE hModuleSelf;
+	WCHAR wszFileNameSelf[MAX_PATH];
+	Nt_GetModuleFileName(hModuleSelf, wszFileNameSelf, MAX_PATH);
+	if (_wcsicmp(findnamew(wszFileNameSelf), L"d3d8.dll") == 0)
 	{
-		INLINE_HOOK(Nt_GetProcAddress(hModuleKernel32, "GetModuleHandleW"), GetModuleHandleWNew, GetModuleHandleWOld),
-		INLINE_HOOK(Nt_GetProcAddress(hModuleKernel32, "GetModuleHandleA"), GetModuleHandleANew, GetModuleHandleAOld),
-	};
-	Nt_PatchMemory(NULL, 0, f_global1, countof(f_global1), hModule);
+		HMODULE hModuleKernel32 = Nt_GetModuleHandle(L"kernel32.dll");
+		MEMORY_FUNCTION_PATCH f_global1[] =
+		{
+			INLINE_HOOK(Nt_GetProcAddress(hModuleKernel32, "GetModuleHandleW"), GetModuleHandleWNew, GetModuleHandleWOld),
+			INLINE_HOOK(Nt_GetProcAddress(hModuleKernel32, "GetModuleHandleA"), GetModuleHandleANew, GetModuleHandleAOld),
+		};
+		Nt_PatchMemory(NULL, 0, f_global1, countof(f_global1), hModule);
+	}
 #endif
 
 #if 0
