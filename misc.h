@@ -219,6 +219,45 @@ namespace NINI
 	}
 }
 
+BOOL Nt_IsPathExistsW(LPCWSTR pszPath)
+{
+	return Nt_GetFileAttributes(pszPath) != -1;
+}
+
+bool Nt_IsPathExistsA(LPCSTR pszPath)
+{
+	WCHAR	szwPath[MAX_PATH];
+	Nt_AnsiToUnicode(szwPath, countof(szwPath), (PCHAR)pszPath, -1);
+	return Nt_GetFileAttributes(szwPath) != -1;
+}
+
+
+ULONG PrintConsoleA(PCHAR pszFormat, ...)
+{
+    BOOL    Result;
+    ULONG   Length;
+    CHAR	Buffer[0xFF0 / 4];
+	WCHAR	wBuffer[0xFF0 / 2];
+    va_list pArg;
+	
+    va_start(pArg, pszFormat);
+    Length = _vsnprintf(Buffer, countof(Buffer) - 1, pszFormat, pArg);
+    if (Length == -1)
+        return Length;
+
+	Nt_AnsiToUnicode(wBuffer, countof(wBuffer), (PCHAR)Buffer, -1);
+	
+    Result = WriteConsoleW(
+		Nt_CurrentPeb()->ProcessParameters->StandardOutput,
+		wBuffer,
+		StrLengthW(wBuffer),//Length,
+		&Length,
+		NULL
+		);
+	
+    return Result ? Length : 0;
+}
+
 ULONG __stdcall PrintDebugStringA(PCHAR lpString)
 {
 	//HANDLE hstdout = GetStdHandle(STD_OUTPUT_HANDLE);
@@ -226,7 +265,7 @@ ULONG __stdcall PrintDebugStringA(PCHAR lpString)
 	BOOL    Result;
 	ULONG   Length;
 
-	Length = lstrlen(lpString);
+	Length = StrLengthA(lpString);
 	if (Length == 0)
 		return Length;
 

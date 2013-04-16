@@ -221,7 +221,9 @@ typedef struct  // 自定义技能格式
 	short	Effect2Parameter;
 	ushort	Effect2ST;
 
-	DUMMY_STRUCT(4);
+	//DUMMY_STRUCT(4);
+	ushort  addrMagicName;	// 魔法名 地址
+	ushort  addrMagicIntro;	// 魔法说明 地址
 } ED6_CRAFT_INFO;
 typedef ED6_CRAFT_INFO ED7_CRAFT_INFO;
 
@@ -230,6 +232,7 @@ typedef struct
 	CHAR Description[0x100];
 	CHAR Name[0x20];
 } ED6_CRAFT_INTRO;
+typedef ED6_CRAFT_INTRO ED7_CRAFT_INTRO;
 
 namespace NED61
 {
@@ -447,6 +450,122 @@ namespace NED63
 		ushort	item[8];
 		byte	probability[8];	
 	} ED6_DROP_ITEM;
+}
+
+
+namespace NEDZERO
+{
+	typedef struct
+	{
+		int					HPMax;
+		int					HP;
+		ushort				Level;
+		ushort				EPMax;
+		ushort				EP;
+		ushort				CP;
+		UINT				EXP;    
+		short				STR;
+		short				DEF;
+		short				ATS;
+		short				ADF;
+		short				DEX;
+		short				AGL;
+		short				MOV;
+		short				SPD;
+		short				DEXRate;
+		short				AGLRate;
+		ushort				CPMAX;
+		DUMMY_STRUCT(0x2);
+		ushort				RNG;		// 内存中改StatusBasic中的才有效
+		DUMMY_STRUCT(0x2);
+		RESISTANCE          condition;  // RESISTANCE类型，进程中有效; 战斗外包括存档中 DEATH有效
+	} ED6_CHARACTER_STATUS;
+	typedef ED6_CHARACTER_STATUS ED6_STATUS;
+	typedef ED6_CHARACTER_STATUS ED7_CHARACTER_STATUS;
+	typedef ED6_CHARACTER_STATUS ED7_STATUS;
+}
+
+namespace NEDAO
+{
+	typedef NEDZERO::ED6_CHARACTER_STATUS ED6_CHARACTER_STATUS;
+	typedef ED6_CHARACTER_STATUS ED6_STATUS;
+	typedef ED6_CHARACTER_STATUS ED7_CHARACTER_STATUS;
+	typedef ED6_CHARACTER_STATUS ED7_STATUS;
+
+	typedef struct // 0x2424
+	{
+		union
+		{
+			DUMMY_STRUCT(0x2424);
+			struct
+			{
+				USHORT              SoldierNo;                  // 我方0-7，敌方8-15，支援16-19，待分身20-21
+				USHORT				Flags;                      // 10 敌方 40 己方 ...
+				BYTE				DeathFlags;                 // 02 不参与战场胜利判定 04 死后留在战场上
+				BYTE				UnderAttackFlags;           // 08 Resist ATDelay 02 不被击退 01 被攻击不转身(3D)  10 无法被攻击到  20 强制miss
+				DUMMY_STRUCT(4);
+				USHORT              CharacterIndex;
+				DUMMY_STRUCT(2);
+				USHORT              ATActTime;  				// AT条动多少次，初始为0
+				FileIndex			SYFileIndex;
+				FileIndex			MSFileIndex;
+				FileIndex			ASFileIndex;				// 0x18
+				DUMMY_STRUCT(0x156);
+				USHORT				wActType;
+				DUMMY_STRUCT(0xA);
+				USHORT				wUseMagic;
+				DUMMY_STRUCT(0xB4);
+				//DUMMY_STRUCT(0x218);
+				ED6_STATUS			StatusBasic;    			// normal难度基础值
+				ED6_STATUS			StatusSum;					// 算上难度、装备、回路
+
+				ushort				MoveSPD;                // 移动速度，我方人员也从ms文件中读取
+				ushort				MoveAfterAttack;        // 从ms文件中读取
+				CONDITION			Condition[32];
+				DUMMY_STRUCT(24);
+				int				AT;
+				int				AT2;    // AiTime08用
+				
+				ushort				AIType;
+				ushort				EXPGet;                     // 战斗胜利 结算经验前暂存
+				ushort				DropIndex1;                 // 掉落物 物品代码
+				ushort				DropIndex2;
+				ubyte				DropProbability1;           // 掉落概率
+				ubyte				DropProbability2;    
+				ubyte				Sex; 
+				ubyte				DisplayHighLevelArtsAttResistance;      
+				// 是否开启时空幻有效率显示，0/8 不开启 1/9 开启，应该是标志位，可能含有更多信息
+				ushort				Equip[5];                   // 装备
+				ushort				Orb[7];                     // 回路   7个 
+				
+				ED7_AI_INFO			NormalAttack;
+				ED7_AI_INFO			Arts[80];
+				ED7_AI_INFO			Craft[10];
+				ED7_AI_INFO			SCraft[5];
+				ED7_AI_INFO			SupportCraft[5]; 
+				DUMMY_STRUCT(0x50);
+				ED7_CRAFT_INFO		CraftInf[16];
+				ED7_CRAFT_INTRO		CraftIntro[16];
+/*				
+				CraftLastUsed_INFO	CraftLastUsed;
+				BYTE				fleeParameter[4];
+				ED6_CRAFT_INFO		CraftInf[16];
+				ED6_CRAFT_INTRO		CraftIntro[16];
+				
+				DUMMY_STRUCT(0x4B);
+				ubyte				Sepith[7];                  // 掉落耀晶片
+				FSkip(2);
+				ushort				EXPGet;                     // 战斗胜利 结算经验前暂存
+				FSkip(2);
+				ushort				ArtsAttResistance[7];       // 七曜属性有效率
+				FSkip(2);
+				RESISTANCE			Resistance;					// 0x22E0
+				DUMMY_STRUCT(0x8C);
+				char				CharacterIntro[0x100];		// 0x2370*/
+			};
+		};
+	} ED6_CHARACTER_BATTLE_INF;
+	typedef ED6_CHARACTER_BATTLE_INF ED7_CHARACTER_BATTLE_INF;
 }
 #pragma pack()
 
