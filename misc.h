@@ -3,6 +3,7 @@
 
 #include <windows.h>
 
+#pragma warning (disable: 4127)
 
 template<class T1> T1 TypeMax(T1 t1)
 {
@@ -172,13 +173,14 @@ template<class T1> T1 SaturateConvert(T1* t1, float t2)
 	return SaturateConvert(t1, qwTemp);
 }
 */
+#pragma warning (default: 4127)
 
 namespace NINI
 {
-	double WINAPI GetPrivateProfileDoubleA(LPCSTR lpAppName, LPCSTR lpKeyName, double fDefault, LPCSTR lpFileName)
+	double GetPrivateProfileDoubleA(LPCSTR lpAppName, LPCSTR lpKeyName, double fDefault, LPCSTR lpFileName)
 	{
-		char szTemp[100];
-		DWORD dwCopied = GetPrivateProfileStringA(lpAppName, lpKeyName, NULL, szTemp, sizeof(szTemp), lpFileName);
+		char szTemp[0x100];
+		DWORD dwCopied = GetPrivateProfileStringA(lpAppName, lpKeyName, NULL, szTemp, countof(szTemp), lpFileName);
 		if (dwCopied == 0)
 		{
 			return fDefault;
@@ -189,10 +191,10 @@ namespace NINI
 		}
 	}
 
-	INT WINAPI GetPrivateProfileIntA(LPCSTR lpAppName, LPCSTR lpKeyName, INT nDefault, LPCSTR lpFileName)
+	INT GetPrivateProfileIntA(LPCSTR lpAppName, LPCSTR lpKeyName, INT nDefault, LPCSTR lpFileName)
 	{
-		char szTemp[100];
-		DWORD dwCopied = GetPrivateProfileStringA(lpAppName, lpKeyName, "", szTemp, sizeof(szTemp), lpFileName);
+		char szTemp[0x100];
+		DWORD dwCopied = GetPrivateProfileStringA(lpAppName, lpKeyName, NULL, szTemp, countof(szTemp), lpFileName);
 		if (dwCopied == 0)
 		{
 			return nDefault;
@@ -203,20 +205,29 @@ namespace NINI
 		}
 	}
 
-	bool WINAPI GetPrivateProfileBoolA(LPCSTR lpAppName, LPCSTR lpKeyName, bool bDefault, LPCSTR lpFileName)
+    INT GetPrivateProfileIntW( IN LPCWSTR lpAppName, IN LPCWSTR lpKeyName, IN INT nDefault, IN LPCWSTR lpFileName )
+    {
+        WCHAR szTemp[0x100];
+        DWORD dwCopied = GetPrivateProfileStringW(lpAppName, lpKeyName, NULL, szTemp, countof(szTemp), lpFileName);
+        if (dwCopied == 0)
+        {
+            return nDefault;
+        }
+        else
+        {
+            return wcstol(szTemp, NULL, 10);
+		}
+    }
+
+	bool GetPrivateProfileBoolA(LPCSTR lpAppName, LPCSTR lpKeyName, bool bDefault, LPCSTR lpFileName)
 	{
 		return GetPrivateProfileIntA(lpAppName, lpKeyName, bDefault, lpFileName) != 0;
-	/*	char szTemp[100];
-		DWORD dwCopied = GetPrivateProfileStringA(lpAppName, lpKeyName, "", szTemp, sizeof(szTemp), lpFileName);
-		if (dwCopied == 0)
-		{
-			return bDefault;
-		}
-		else
-		{
-			return strtol(szTemp, NULL, 0) != 0;
-		}*/
 	}
+
+    bool GetPrivateProfileBoolW( IN LPCWSTR lpAppName, IN LPCWSTR lpKeyName, IN bool bDefault, IN LPCWSTR lpFileName )
+    {
+        return GetPrivateProfileIntW(lpAppName, lpKeyName, bDefault, lpFileName) != 0;
+    }
 }
 
 BOOL Nt_IsPathExistsW(LPCWSTR pszPath)
@@ -224,7 +235,7 @@ BOOL Nt_IsPathExistsW(LPCWSTR pszPath)
 	return Nt_GetFileAttributes(pszPath) != -1;
 }
 
-bool Nt_IsPathExistsA(LPCSTR pszPath)
+BOOL Nt_IsPathExistsA(LPCSTR pszPath)
 {
 	WCHAR	szwPath[MAX_PATH];
 	Nt_AnsiToUnicode(szwPath, countof(szwPath), (PCHAR)pszPath, -1);
@@ -241,7 +252,9 @@ ULONG PrintConsoleA(PCHAR pszFormat, ...)
     va_list pArg;
 	
     va_start(pArg, pszFormat);
+#pragma warning (disable: 4996)
     Length = _vsnprintf(Buffer, countof(Buffer) - 1, pszFormat, pArg);
+#pragma warning (default: 4996)
     if (Length == -1)
         return Length;
 

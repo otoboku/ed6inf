@@ -14,6 +14,7 @@ typedef unsigned char UCHAR, ubyte;
 #define RESISTANCE UINT
 
 #pragma pack(1)
+#pragma warning (disable: 4201)
 
 typedef struct  //DAT DIR文件索引
 {
@@ -528,10 +529,10 @@ namespace NEDAO
 				
 				ushort				AIType;
 				ushort				EXPGet;                     // 战斗胜利 结算经验前暂存
-				ushort				DropIndex1;                 // 掉落物 物品代码
-				ushort				DropIndex2;
-				ubyte				DropProbability1;           // 掉落概率
-				ubyte				DropProbability2;    
+				ushort				DropIndex[2];                 // 掉落物 物品代码
+				//ushort				DropIndex2;
+				ubyte				DropProbability[2];           // 掉落概率
+				//ubyte				DropProbability2;   
 				ubyte				Sex; 
 				ubyte				DisplayHighLevelArtsAttResistance;      
 				// 是否开启时空幻有效率显示，0/8 不开启 1/9 开启，应该是标志位，可能含有更多信息
@@ -542,31 +543,24 @@ namespace NEDAO
 				ED7_AI_INFO			Arts[80];
 				ED7_AI_INFO			Craft[10];
 				ED7_AI_INFO			SCraft[5];
-				ED7_AI_INFO			SupportCraft[5]; 
-				DUMMY_STRUCT(0x50);
-				ED7_CRAFT_INFO		CraftInf[16];
-				ED7_CRAFT_INTRO		CraftIntro[16];
-/*				
+				ED7_AI_INFO			SupportCraft[3]; 
 				CraftLastUsed_INFO	CraftLastUsed;
 				BYTE				fleeParameter[4];
-				ED6_CRAFT_INFO		CraftInf[16];
-				ED6_CRAFT_INTRO		CraftIntro[16];
+				ED7_CRAFT_INFO		CraftInf[16];
+				ED7_CRAFT_INTRO		CraftIntro[16];
 				
-				DUMMY_STRUCT(0x4B);
 				ubyte				Sepith[7];                  // 掉落耀晶片
-				FSkip(2);
-				ushort				EXPGet;                     // 战斗胜利 结算经验前暂存
-				FSkip(2);
+				FSkip(3);
 				ushort				ArtsAttResistance[7];       // 七曜属性有效率
-				FSkip(2);
-				RESISTANCE			Resistance;					// 0x22E0
-				DUMMY_STRUCT(0x8C);
-				char				CharacterIntro[0x100];		// 0x2370*/
+				RESISTANCE			Resistance;					// 0x2304
+				DUMMY_STRUCT(0x78);
+				char				CharacterIntro[0x80];		// 0x2380
 			};
 		};
 	} ED6_CHARACTER_BATTLE_INF;
 	typedef ED6_CHARACTER_BATTLE_INF ED7_CHARACTER_BATTLE_INF;
 }
 #pragma pack()
+#pragma warning (default: 4201)
 
 #endif
