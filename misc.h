@@ -7,6 +7,8 @@
 
 template<class T1> T1 TypeMax(T1 t1)
 {
+    UNREFERENCED_PARAMETER(t1);
+
 	if ((T1)0xFFFFFFFFFFFFFFFF > 0)
 	{
 		return (T1)~T1(0);
@@ -19,6 +21,8 @@ template<class T1> T1 TypeMax(T1 t1)
 
 template<class T1> T1 TypeMin(T1 t1)
 {
+    UNREFERENCED_PARAMETER(t1);
+
 	if ((T1)0xFFFFFFFFFFFFFFFF > 0)
 	{
 		return 0;
@@ -219,14 +223,30 @@ namespace NINI
 		}
     }
 
-	bool GetPrivateProfileBoolA(LPCSTR lpAppName, LPCSTR lpKeyName, bool bDefault, LPCSTR lpFileName)
+	BOOL GetPrivateProfileBoolA(LPCSTR lpAppName, LPCSTR lpKeyName, BOOL bDefault, LPCSTR lpFileName)
 	{
-		return GetPrivateProfileIntA(lpAppName, lpKeyName, bDefault, lpFileName) != 0;
+		switch (GetPrivateProfileIntA(lpAppName, lpKeyName, bDefault, lpFileName))
+        {
+        case 0:
+            return FALSE;
+        case 1:
+            return TRUE;
+        default:
+            return bDefault;
+        }
 	}
 
-    bool GetPrivateProfileBoolW( IN LPCWSTR lpAppName, IN LPCWSTR lpKeyName, IN bool bDefault, IN LPCWSTR lpFileName )
+    BOOL GetPrivateProfileBoolW( IN LPCWSTR lpAppName, IN LPCWSTR lpKeyName, IN BOOL bDefault, IN LPCWSTR lpFileName )
     {
-        return GetPrivateProfileIntW(lpAppName, lpKeyName, bDefault, lpFileName) != 0;
+        switch (GetPrivateProfileIntW(lpAppName, lpKeyName, bDefault, lpFileName))
+        {
+        case 0:
+            return FALSE;
+        case 1:
+            return TRUE;
+        default:
+            return bDefault;     
+        }
     }
 }
 
