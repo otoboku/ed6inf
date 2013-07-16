@@ -139,14 +139,42 @@ template<class T1, class T2> T1 SaturateConvert(T1* t1, T2 t2)
 
 template<class T1> T1 SaturateConvert(T1 t1, double t2)
 {
-	long long qwTemp = (long long)t2;
-	return SaturateConvert(t1, qwTemp);
+    if (t2 > (double)TypeMax(t1))
+        t1 = TypeMax(t1);
+    else if (t2 < (double)TypeMin(t1))
+        t1 = TypeMin(t1);
+    else
+        t1 = (T1)t2;
+
+    return t1;
+	//long long qwTemp = (long long)t2;
+	//return SaturateConvert(t1, qwTemp);
 }
 
 template<class T1> T1 SaturateConvert(T1* t1, double t2)
 {
-	long long qwTemp = (long long)t2;
-	return SaturateConvert(t1, qwTemp);
+    *t1 = SaturateConvert(*t1, t2);
+	return *t1;
+	//long long qwTemp = (long long)t2;
+	//return SaturateConvert(t1, qwTemp);
+}
+
+template<class T1> T1 SaturateConvert(T1 t1, float t2)
+{
+    if (t2 > (float)TypeMax(t1))
+        t1 = TypeMax(t1);
+    else if (t2 < (float)TypeMin(t1))
+        t1 = TypeMin(t1);
+    else
+        t1 = (T1)t2;
+    
+    return t1;
+}
+
+template<class T1> T1 SaturateConvert(T1* t1, float t2)
+{
+    *t1 = SaturateConvert(*t1, t2);
+    return *t1;
 }
 
 template<class T1, class T2> T1 SaturateConvertEx(T1 t1, T2 t2, T1 MAX = TypeMax(T1(0)), T1 MIN = TypeMin(T1(0)))
@@ -336,5 +364,39 @@ ULONG __stdcall PrintDebugStringW(PWCHAR lpString)
 		);
 
 	return Result ? Length : 0;
+}
+
+namespace NFILE
+{
+    BOOL WriteFileW(
+        IN  LPCWSTR         lpFileName,
+        IN  LPVOID          lpBuffer,
+        IN  DWORD           nNumberOfBytesToWrite/*  OPTIONAL,
+        OUT LPDWORD         lpNumberOfBytesWritten OPTIONAL = NULL,
+        IN  LPOVERLAPPED    lpOverlapped           OPTIONAL = NULL*/
+        )
+    {      
+        if (lpFileName == NULL || lpBuffer == NULL)
+            return FALSE;
+
+        NtFileDisk file;
+        BOOL bResult = FALSE;
+
+        LOOP_ONCE
+        {
+            if (!NT_SUCCESS(file.Create(lpFileName)))
+                break;
+        
+            //ULONG BOM = BOM_UTF16_LE;
+            //file.Write(&BOM, 2);
+            //file.Seek(0, SEEK_END);
+            if (!NT_SUCCESS(file.Write(lpBuffer, nNumberOfBytesToWrite)))
+                break;
+
+            bResult = TRUE;
+        }
+        file.Close();
+        return bResult;
+    }
 }
 #endif
