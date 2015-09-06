@@ -2,7 +2,7 @@
 
 #include "ed6_common.h"
 #include "ed6inf_data.h"
-#include "misc.h"
+#include "misc_aki.h"
 
 bool  g_bShowExtraInfo = true;
 bool  g_bDisplayBattleIcoEx = false;

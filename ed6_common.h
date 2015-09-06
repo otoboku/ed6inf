@@ -1,9 +1,10 @@
 #ifndef _ed6_common_H_E0FE925A_BC78_484e_B212_2DFA2B7787C9
 #define _ed6_common_H_E0FE925A_BC78_484e_B212_2DFA2B7787C9
 
-#include "pragma_once.h"
-#include <Windows.h>
-#include "my_headers.h"
+#include "MyLibrary.h"
+//#include "pragma_once.h"
+//#include <Windows.h>
+//#include "my_headers.h"
 
 
 typedef unsigned long ulong;

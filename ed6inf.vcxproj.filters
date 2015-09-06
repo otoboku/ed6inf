@@ -26,9 +26,6 @@
     <ClInclude Include="ed6inf.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="misc.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
     <ClInclude Include="ed6inf_data.h">
       <Filter>Header Files</Filter>
     </ClInclude>
