@@ -1,7 +1,6 @@
 #pragma comment(linker,"/SECTION:.text,ERW /MERGE:.rdata=.text /MERGE:.data=.text")
 #pragma comment(linker,"/SECTION:indexmoe,ERW /MERGE:.text=indexmoe")
-//#pragma comment(lib,"E:\\WinDDK\\7600.16385.1\\lib\\win7\\i386\\ntdllp.lib")
-//#pragma comment(lib,"ntdllpC.lib")
+//#pragma comment(lib,"akimisc.lib")
 
 #define USE_NT_VER      1
 #define CONSOLE_DEBUG   0
@@ -10,7 +9,29 @@
 //#include "my_commsrc.h"
 #include "MyLibrary.cpp"
 
-bool bIsInit = false;
+#define ENABLE_LOG  0
+
+#if ENABLE_LOG
+void WriteLog(PCWSTR Format, ...)
+{
+    NtFileDisk log;
+    WCHAR Buffer[0xFF0];
+
+    log.CreateIfNotExist(L"log.txt");
+    if (log.GetSize32() == 0)
+    {
+        ULONG BOM = BOM_UTF16_LE;
+        log.Write(&BOM, 2);
+    }
+
+    log.Seek(0, FILE_END);
+
+    log.Write(Buffer, vswprintf(Buffer, Format, (va_list)(&Format + 1)) * 2);
+    log.Write(L"\r\n", 4);
+}
+#else
+#define WriteLog(...)
+#endif
 
 #if 0
 #if D3D8_VERSION
@@ -181,75 +202,67 @@ BOOL WINAPI DllMain(HINSTANCE hInstance, ULONG Reason, LPVOID lpReserved)
 #endif
 #endif
 
-#pragma comment(linker,"/ENTRY:DllMain")
-
+/*
 #if ED6EX_VERSION
 #pragma comment(linker, "/EXPORT:DirectInput8Create=dinput8.DirectInput8Create")
-//#pragma comment(linker, "/EXPORT:Direct3DCreate8=d3d8.Direct3DCreate8")
-
+#pragma comment(linker, "/EXPORT:Direct3DCreate8=d3d8.Direct3DCreate8")
 
 #elif D3D8_VERSION
 #pragma comment(linker, "/EXPORT:Direct3DCreate8=system32\\d3d8.Direct3DCreate8")
 
 #elif DINPUT8_VERSION
-#pragma comment(linker, "/EXPORT:DirectInput8Create=system32/dinput8.DirectInput8Create")
+#pragma comment(linker, "/EXPORT:DirectInput8Create=system32\\dinput8.DirectInput8Create")
 
 #endif
+*/
 
-bool Load()
-{
-	if (Nt_IsPathExists(L".\\dsound.dll") || Nt_IsPathExists(L".\\d3d8.dll"))
-	{
-		//MessageBoxW(NULL, L"不要和dsound.dll、d3d8.dll同时使用！", L"ed6Ex.dll", MB_ICONSTOP);
-		//max(2,3);
-		//AllocConsole();
-		//PrintConsoleW(L"不要和dsound.dll、d3d8.dll同时使用！\r\n");
-		//PrintDebugStringW(L"不要和dsound.dll、d3d8.dll同时使用！\r\n");
-		//__asm MOV EAX,DWORD PTR DS:[0];
-		//__asm int 3;
-		return false;
-	}
-	return true;
-}
 
 HMODULE hModuleSelf;
+BOOL WINAPI DllMain(PVOID BaseAddress, ULONG Reason, PVOID Reserved);
 
-BOOL WINAPI DllMain(HINSTANCE hInstance, ULONG Reason, LPVOID lpReserved)
+#include "xxoo.hpp"
+
+BOOL Initialize(PVOID BaseAddress)
 {
-    UNREFERENCED_PARAMETER(lpReserved);
-	hModuleSelf = hInstance;
+    ml::MlInitialize();
+
+    LdrDisableThreadCalloutsForDll(BaseAddress);
+    SetExeDirectoryAsCurrent();
+
+#if CONSOLE_DEBUG
+    AllocConsole();
+#endif
+
+    static BOOL bIsInit = False;
+    if (!bIsInit)
+    {
+        Init();
+        bIsInit = TRUE;
+    }
+
+    return TRUE;
+}
+
+BOOL UnInitialize(PVOID BaseAddress)
+{
+    return FALSE;
+}
+
+BOOL WINAPI DllMain(PVOID BaseAddress, ULONG Reason, PVOID Reserved)
+{
+    UNREFERENCED_PARAMETER(Reserved);
 
     switch (Reason)
     {
-	case DLL_PROCESS_ATTACH:
-		LdrDisableThreadCalloutsForDll(hInstance);
-		MyLib_Initialize();
+        case DLL_PROCESS_ATTACH:
+            return Initialize(BaseAddress) || UnInitialize(BaseAddress);
 
-#if CONSOLE_DEBUG
-		AllocConsole();
-#endif
-	
-		/*
-		if(Load())
-		{
-			//MessageBoxW(NULL, L"load original d3d dll failed!", L"error!", MB_ICONSTOP);
-			//MessageBoxW(NULL, L"load original system dll failed!\r\n加载系统dll失败！", L"error!", MB_ICONSTOP);
-			Init();
-		}*/
-		//Load();
+        case DLL_PROCESS_DETACH:
+            UnInitialize(BaseAddress);
 
-		if (!bIsInit)
-		{
-			Init();
-			bIsInit = true;
-		}
-		break;
-		
-	case DLL_PROCESS_DETACH:
-		MyLib_UnInitialize();
-		break;
+        break;
     }
-	
+
     return TRUE;
 }
 //#endif

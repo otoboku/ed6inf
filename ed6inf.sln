@@ -7,15 +7,15 @@ Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "ed6inf", "ed6inf.vcxproj", 
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
-		d3d8|Win32 = d3d8|Win32
 		dinput8|Win32 = dinput8|Win32
+		dinput8d|Win32 = dinput8d|Win32
 		ed6Ex|Win32 = ed6Ex|Win32
 	EndGlobalSection
 	GlobalSection(ProjectConfigurationPlatforms) = postSolution
-		{148281B9-45F7-31D4-26A7-5B63BE62FC51}.d3d8|Win32.ActiveCfg = d3d8|Win32
-		{148281B9-45F7-31D4-26A7-5B63BE62FC51}.d3d8|Win32.Build.0 = d3d8|Win32
 		{148281B9-45F7-31D4-26A7-5B63BE62FC51}.dinput8|Win32.ActiveCfg = dinput8|Win32
 		{148281B9-45F7-31D4-26A7-5B63BE62FC51}.dinput8|Win32.Build.0 = dinput8|Win32
+		{148281B9-45F7-31D4-26A7-5B63BE62FC51}.dinput8d|Win32.ActiveCfg = dinput8d|Win32
+		{148281B9-45F7-31D4-26A7-5B63BE62FC51}.dinput8d|Win32.Build.0 = dinput8d|Win32
 		{148281B9-45F7-31D4-26A7-5B63BE62FC51}.ed6Ex|Win32.ActiveCfg = ed6Ex|Win32
 		{148281B9-45F7-31D4-26A7-5B63BE62FC51}.ed6Ex|Win32.Build.0 = ed6Ex|Win32
 	EndGlobalSection

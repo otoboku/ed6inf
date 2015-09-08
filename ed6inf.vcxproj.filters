@@ -29,6 +29,9 @@
     <ClInclude Include="ed6inf_data.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="xxoo.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <None Include="readme.txt" />

@@ -29,6 +29,7 @@ int		nDifficulty = 0;
 int		nSepithUpLimit = 0;
 int		nShowAT = 0;
 int		nShowConditionAT = 0;
+int     nConditionATColor = 0xFF00FF00;
 
 typedef struct
 {
@@ -41,8 +42,8 @@ typedef struct
 	INT	DEX;
 	INT	AGL;
 	INT	MOV;
-	bool	ResistAbnormalCondition;
-	bool	ResistAbilityDown;
+	BOOL	ResistAbnormalCondition;
+	BOOL	ResistAbilityDown;
 } structStatusRate;
 
 structStatusRate statusRateUserDefined;
@@ -185,7 +186,7 @@ namespace NED63
 	ULONG	addrDisplayStatusPatch1 = 0x44AC36;
 	ULONG	addrDisplayStatusPatch2 = 0x52B1E0; // call
 
-	ULONG addrDisplayBattleIcoEx0 = 0x0052BCFA;
+	ULONG	addrDisplayBattleIcoEx0 = 0x0052BCFA;
 	DWORD	dwYStart = 0x110;
 
 	ULONG	addrDisplayItemDropPatch0 = 0x0044A68E;
@@ -206,6 +207,8 @@ namespace NED63
 	//ULONG	addrChangeEnemyStatusPatch1 = addrChangeEnemyStatusPatch0 + 5;
 	ULONG	addrChangeEnemyStatusPatch1 = 0x0044CDB4;
 	ULONG	addrChangeEnemyStatusPatch2 = 0x004A4360; // call
+
+    PSIZE   resolution = (PSIZE)0x005BDFF0; // 分辨率
 
 	ASM void ed6DisplaySkipCondition()
 	{
@@ -1046,32 +1049,36 @@ L01:
 			jmp addrChangeEnemyStatusPatch1;
 		}
 	}
-	void __cdecl ed6ShowConditionAtOld(ULONG AT, float x, float y, ULONG a4)
+	void __cdecl ed6ShowConditionAtOld(ULONG AT, float x, float y, ULONG color)
 	{
 		ASM_DUMMY_AUTO();
 	}
-	void __cdecl ed6ShowConditionAtNew(ULONG AT, float x, float y, ULONG a4)
+	void __cdecl ed6ShowConditionAtNew(ULONG AT, float x, float y, ULONG color)
 	{
-		if (nShowConditionAT != 5)
+		if (nShowConditionAT == 1 || nShowConditionAT == 3)
 		{
 			if (AT > 99)
 			{
 				if (nShowConditionAT == 1) return;
-				AT =99;
+				AT = 99;
 			}
 			if (AT < 10)
 			{
-				x += 8.0f;
+                x += (16.f * resolution->cx / 640.f - 8.f * 1) / 2;
+				//x += 8.0f;
 			}
 			else
 			{
-				x += 3.5f;
+                x += (16.f * resolution->cx / 640.f - 8.f * 2) / 2;
+				//x += 3.5f;
 			}
 		}
-		x += 14.0f;
-		y += 2.0f;
+		//x += 14.0f;
+		//y += 2.0f;
 
-		ed6ShowConditionAtOld(AT, x, y, a4);			
+        x += 16.f;
+        y = (y - 16.f) + 16.f * resolution->cy / 480.f;
+		ed6ShowConditionAtOld(AT, x, y, nConditionATColor);
 	}
 }
 
@@ -1101,7 +1108,7 @@ namespace NED62
 	ULONG	addrDisplayStatusPatch1 = 0x04418D5;
 	ULONG	addrDisplayStatusPatch2 = 0x0048C410; // call
 
-	ULONG addrDisplayBattleIcoEx0 = 0x0048CEAA;
+	ULONG	addrDisplayBattleIcoEx0 = 0x0048CEAA;
 	DWORD	dwYStart = 0x110;
 
 	ULONG	addrSoldierNo0 = 0x60EF38;
@@ -1109,6 +1116,8 @@ namespace NED62
 	//ULONG	addrChangeEnemyStatusPatch1 = addrChangeEnemyStatusPatch0 + 5;
 	ULONG	addrChangeEnemyStatusPatch1 = 0x00443597;
 	ULONG	addrChangeEnemyStatusPatch2 = 0x004CE170; // call
+
+    PSIZE   resolution = (PSIZE)0x005643F8; // 分辨率
 
 	ASM void ed6DisplaySkipCondition()
 	{
@@ -1504,32 +1513,39 @@ L01:
 		}
 	}
 
-	void __cdecl ed6ShowConditionAtOld(ULONG AT, float x, float y, float width, float height, ULONG a6, ULONG a7, ULONG a8)
+	void __cdecl ed6ShowConditionAtOld(ULONG AT, float x, float y, float width, float height, ULONG a6, ULONG a7, ULONG color)
 	{
 		ASM_DUMMY_AUTO();
 	}
-	void __cdecl ed6ShowConditionAtNew(ULONG AT, float x, float y, float width, float height, ULONG a6, ULONG a7, ULONG a8)
+	void __cdecl ed6ShowConditionAtNew(ULONG AT, float x, float y, float width, float height, ULONG a6, ULONG a7, ULONG color)
 	{
-		if (nShowConditionAT != 5)
+		if (nShowConditionAT == 1 || nShowConditionAT == 3)
 		{
 			if (AT > 99)
 			{
 				if (nShowConditionAT == 1) return;
-				AT =99;
+				AT = 99;
 			}
+
 			if (AT < 10)
 			{
-				x += -8.f;
+                x -= (8.f * 2 - (16.f * resolution->cx / 640.f - 8.f * 1) / 2);
+                //x += -10.f;
+                //x += -6.8f;
 			}
 			else
 			{
-				x += -4.f;
+				x -= (8.f * 1 - (16.f * resolution->cx / 640.f - 8.f * 2) / 2);
+                //x += -6.f;
+                //x += -3.3f;
 			}
 		}
-		x += -2.0f;
-		y += 2.0f;
 
-		ed6ShowConditionAtOld(AT, x, y, width, height, a6, a7, a8);
+        // x-=16 y+=16
+        y = (y - 16.f) + 16.f * resolution->cy / 480.f;
+
+        //ed6ShowConditionAtOld(AT, x, y, width * resolution->cx / 640.f, height * resolution->cy / 480.f, a6, a7, a8);
+		ed6ShowConditionAtOld(AT, x, y, width, height, a6, a7, nConditionATColor);
 	}
 }
 
@@ -1559,7 +1575,7 @@ namespace NED61
 	ULONG	addrDisplayStatusPatch1 = 0x0043473C;
 	ULONG	addrDisplayStatusPatch2 = 0x00474E30; // call
 
-	ULONG addrDisplayBattleIcoEx0 = 0x004758CA;
+	ULONG	addrDisplayBattleIcoEx0 = 0x004758CA;
 	DWORD	dwYStart = 0x112;
 
 	ULONG	addrSoldierNo0 = 0x5A58D0;
@@ -1567,6 +1583,8 @@ namespace NED61
 	//ULONG	addrChangeEnemyStatusPatch1 = addrChangeEnemyStatusPatch0 + 5;
 	ULONG	addrChangeEnemyStatusPatch1 = 0x0043503B;
 	ULONG	addrChangeEnemyStatusPatch2 = 0x004AE7E0; // call
+
+    PSIZE   resolution = (PSIZE)0x005204DC; // 分辨率
 
 	ASM void ed6DisplaySkipCondition()
 	{
@@ -1945,36 +1963,33 @@ L01:
 		}
 	}
 
-	void __cdecl ed6ShowConditionAtOld(ULONG AT, float x, float y, float width, float height, ULONG a6, ULONG a7, ULONG a8)
+	void __cdecl ed6ShowConditionAtOld(ULONG AT, float x, float y, float width, float height, ULONG a6, ULONG a7, ULONG color)
 	{
 		ASM_DUMMY_AUTO();
 	}
-	void __cdecl ed6ShowConditionAtNew(ULONG AT, float x, float y, float width, float height, ULONG a6, ULONG a7, ULONG a8)
+	void __cdecl ed6ShowConditionAtNew(ULONG AT, float x, float y, float width, float height, ULONG a6, ULONG a7, ULONG color)
 	{
-		if (nShowConditionAT != 5)
+		if (nShowConditionAT == 1 || nShowConditionAT == 3)
 		{
 			if (AT > 99)
 			{
 				if (nShowConditionAT == 1) return;
-				AT =99;
+				AT = 99;
 			}
 
 			if (AT < 10)
 			{
-				x += -13.f;
+                x -= (8.f * 2 - (16.f * resolution->cx / 640.f - 8.f * 1) / 2);
 			}
 			else
 			{
-				x += -8.5f;
+				x -= (8.f * 1 - (16.f * resolution->cx / 640.f - 8.f * 2) / 2);
 			}
-
-			width = 9.0f;
-			height = 9.0f;
 		}
-		x += -1.0f;
-		y += 1.0f;
 
-		ed6ShowConditionAtOld(AT, x, y, width, height, a6, a7, a8);
+        // x-=16 y+=16
+        y = (y - 16.f) + 16.f * resolution->cy / 480.f;
+		ed6ShowConditionAtOld(AT, x, y, width, height, a6, a7, nConditionATColor);
 	}
 }
 
@@ -2008,6 +2023,11 @@ void ConfigInit()
 	if (nShowAT < 0 || nShowAT > 2)	nShowAT = 1;
 	nShowConditionAT = NINI::GetPrivateProfileIntA("Battle", "ShowConditionAT", 1, szConfigExPath);
 	if (nShowConditionAT != 0 && nShowConditionAT != 3 && nShowConditionAT != 5)	nShowConditionAT = 1;
+    nConditionATColor = NINI::GetPrivateProfileIntA("Battle", "ConditionATColor", 0xFF00FF00, szConfigExPath);
+
+#if CONSOLE_DEBUG
+    PrintConsoleW(L"%s: 0x%X\r\n", L"ConditionATColor", nConditionATColor);
+#endif
 }
 
 void Init()
@@ -2051,12 +2071,8 @@ void Init()
 	}
 	else
 	{
-		//MessageBoxA(NULL, "invalid game version, patch will not work.\r\n非三豪华简体中文版，本补丁无效。", "warning!", MB_ICONWARNING);
-		//MessageBoxW(NULL, L"invalid game version, patch will not work.\r\n非三豪华简体中文版，本补丁无效。", L"warning!", MB_ICONWARNING);
-//#if !D3D8_VERSION
-#if	DSOUND_VERSION
-//		MessageBoxW(NULL, L"invalid game version, patch will not work.\r\n不支持的游戏版本，本补丁无效。", L"warning!", MB_ICONWARNING);
-#endif
+
+        //MessageBoxW(NULL, L"invalid game version, patch will not work.\r\n不支持的游戏版本，本补丁无效。", L"warning!", MB_ICONWARNING);
 		return;
 	}
 
@@ -2073,7 +2089,8 @@ void Init()
 	//PrintConsoleW(L"%x %x\r\n", pFunOutputDebugStringA, PrintDebugStringA);
 	//PrintConsoleW(L"%x %x\r\n", hModule, hModuleKernel32);
 	//Nt_PatchMemory(NULL, 0, fApiHook, countof(fApiHook), hModule);
-#if D3D8_VERSION
+//#if D3D8_VERSION
+#if 0
 	extern HMODULE hModuleSelf;
 	WCHAR wszFileNameSelf[MAX_PATH];
 	Nt_GetModuleFileName(hModuleSelf, wszFileNameSelf, MAX_PATH);
@@ -2131,6 +2148,15 @@ void Init()
 			};
 			Nt_PatchMemory(memPatchShowAT, countof(memPatchShowAT), NULL, 0, hModule);
 
+		}
+
+		if ((nShowConditionAT == 1 || nShowConditionAT == 3) && resolution->cx >= 800)	// 状态AT 调整到一行
+		{
+			MEMORY_PATCH p[] =
+			{
+				PATCH_MEMORY(0,	4, 0x0041C652 -0x00400000),	// 状态AT 调整到一行
+			};
+			Nt_PatchMemory(p, countof(p), NULL, 0, hModule);
 		}
 
 		MEMORY_PATCH p[] =
@@ -2221,6 +2247,8 @@ void Init()
 		addrChangeEnemyStatusPatch1 = addrChangeEnemyStatusPatch0 + 5;
 		addrChangeEnemyStatusPatch2 = 0x004A36A0; // call
 
+        resolution = (PSIZE)0x005B86C0; // 分辨率
+
 		if (*(unsigned char*)addrChangeEnemyStatusPatch0 != 0xE8)	return;	//0xE8 call 0xE9 jump; 防止重复补丁
 
 		if (nShowAT != 0)	// 显AT
@@ -2241,6 +2269,15 @@ void Init()
 			};
 			Nt_PatchMemory(memPatchShowAT, countof(memPatchShowAT), NULL, 0, hModule);
 
+		}
+
+		if ((nShowConditionAT == 1 || nShowConditionAT == 3) && resolution->cx >= 800)	// 状态AT 调整到一行
+		{
+			MEMORY_PATCH p[] =
+			{
+				PATCH_MEMORY(0,	4, 0x0041C3A2 -0x00400000),	// 状态AT 调整到一行
+			};
+			Nt_PatchMemory(p, countof(p), NULL, 0, hModule);
 		}
 
 		MEMORY_PATCH p[] =
@@ -2321,6 +2358,8 @@ void Init()
 		addrChangeEnemyStatusPatch1 = addrChangeEnemyStatusPatch0 + 5;
 		addrChangeEnemyStatusPatch2 = 0x004A35B0; // call
 
+        resolution = (PSIZE)0x005B8644; // 分辨率
+
 		unsigned char p0044A548[9] = { 0x6A, 0x01, 0x8B, 0xCE, 0xE8, 0x0F, 0xC8, 0x0D, 0x00 };
 		unsigned char p00528A34[5] = { 0xE8, 0xD7, 0xFD, 0xFF, 0xFF };
 		unsigned char p0043CA3F[6] = { 0xE9, 0x2E, 0x01, 0x00, 0x00, 0x90 };
@@ -2355,6 +2394,15 @@ void Init()
 			};
 			Nt_PatchMemory(memPatchShowAT, countof(memPatchShowAT), NULL, 0, hModule);
 
+		}
+
+		if ((nShowConditionAT == 1 || nShowConditionAT == 3) && resolution->cx >= 800)	// 状态AT 调整到一行
+		{
+			MEMORY_PATCH p[] =
+			{
+				PATCH_MEMORY(0,	4, 0x0041C3A2 -0x00400000),	// 状态AT 调整到一行
+			};
+			Nt_PatchMemory(p, countof(p), NULL, 0, hModule);
 		}
 
 		MEMORY_PATCH p[] =
@@ -2419,6 +2467,15 @@ void Init()
 			};
 			Nt_PatchMemory(memPatchShowAT, countof(memPatchShowAT), NULL, 0, hModule);
 
+		}
+
+		if ((nShowConditionAT == 1 || nShowConditionAT == 3) && resolution->cx >= 800)	// 状态AT 调整到一行
+		{
+			MEMORY_PATCH p[] =
+			{
+				PATCH_MEMORY(0,	4, 0x00419A11 -0x00400000),	// 状态AT 调整到一行
+			};
+			Nt_PatchMemory(p, countof(p), NULL, 0, hModule);
 		}
 
 		MEMORY_PATCH p[] =
@@ -2489,6 +2546,8 @@ void Init()
 		addrChangeEnemyStatusPatch1 = addrChangeEnemyStatusPatch0 + 5;
 		addrChangeEnemyStatusPatch2 = 0x004CCF00; // call
 
+        resolution = (PSIZE)0x00563CB0; // 分辨率
+
 		if (*(unsigned char*)addrChangeEnemyStatusPatch0 != 0xE8)	return;	//0xE8 call 0xE9 jump; 防止重复补丁
 
 		if (nShowAT != 0)	// 显AT
@@ -2509,6 +2568,15 @@ void Init()
 			};
 			Nt_PatchMemory(memPatchShowAT, countof(memPatchShowAT), NULL, 0, hModule);
 
+		}
+
+		if ((nShowConditionAT == 1 || nShowConditionAT == 3) && resolution->cx >= 800)	// 状态AT 调整到一行
+		{
+			MEMORY_PATCH p[] =
+			{
+				PATCH_MEMORY(0,	4, 0x00419811 -0x00400000),	// 状态AT 调整到一行
+			};
+			Nt_PatchMemory(p, countof(p), NULL, 0, hModule);
 		}
 
 		MEMORY_PATCH p[] =
@@ -2568,6 +2636,8 @@ void Init()
 		addrChangeEnemyStatusPatch0 = 0x00443112;
 		addrChangeEnemyStatusPatch1 = addrChangeEnemyStatusPatch0 + 5;
 		addrChangeEnemyStatusPatch2 = 0x004CCB30; // call
+
+        resolution = (PSIZE)0x00562BF4; // 分辨率
 
 		unsigned char p004339F9[6] = { 0xE9, 0xF2, 0x00, 0x00, 0x00, 0x90 };
 
@@ -2630,6 +2700,15 @@ void Init()
 			return;
 		}
 
+		if ((nShowConditionAT == 1 || nShowConditionAT == 3) && resolution->cx >= 800)	// 状态AT 调整到一行
+		{
+			MEMORY_PATCH p[] =
+			{
+				PATCH_MEMORY(0,	4, 0x00419821 -0x00400000),	// 状态AT 调整到一行
+			};
+			Nt_PatchMemory(p, countof(p), NULL, 0, hModule);
+		}
+
 		MEMORY_PATCH p[] =
 		{
 			//PATCH_MEMORY(0x43,		1, 0x15A68C),	// 整合恢复 condition
@@ -2688,6 +2767,15 @@ void Init()
 			};
 			Nt_PatchMemory(memPatchShowAT, countof(memPatchShowAT), NULL, 0, hModule);
 
+		}
+
+		if ((nShowConditionAT == 1 || nShowConditionAT == 3) && resolution->cx >= 800)	// 状态AT 调整到一行
+		{
+			MEMORY_PATCH p[] =
+			{
+				PATCH_MEMORY(0,	4, 0x00414525 -0x00400000),	// 状态AT 调整到一行
+			};
+			Nt_PatchMemory(p, countof(p), NULL, 0, hModule);
 		}
 
 		MEMORY_PATCH p[] =
@@ -2750,13 +2838,15 @@ void Init()
 		addrDisplayStatusPatch1 = addrDisplayStatusPatch0 + 5;
 		addrDisplayStatusPatch2 = 0x00474C70; // call
 
-		ULONG addrDisplayBattleIcoEx0 = 0x0047570A;
-		DWORD	dwYStart = 0x112;
+		addrDisplayBattleIcoEx0 = 0x0047570A;
+		dwYStart = 0x112;
 
 		addrSoldierNo0 = 0x5A8370;
 		addrChangeEnemyStatusPatch0 = 0x00434C56;
 		addrChangeEnemyStatusPatch1 = addrChangeEnemyStatusPatch0 + 5;
 		addrChangeEnemyStatusPatch2 = 0x004AE440; // call
+
+        resolution = (PSIZE)0x00520F04; // 分辨率
 
 		if (*(unsigned char*)addrChangeEnemyStatusPatch0 != 0xE8)	return;	//0xE8 call 0xE9 jump; 防止重复补丁
 
@@ -2778,6 +2868,15 @@ void Init()
 			};
 			Nt_PatchMemory(memPatchShowAT, countof(memPatchShowAT), NULL, 0, hModule);
 
+		}
+
+		if ((nShowConditionAT == 1 || nShowConditionAT == 3) && resolution->cx >= 800)	// 状态AT 调整到一行
+		{
+			MEMORY_PATCH p[] =
+			{
+				PATCH_MEMORY(0,	4, 0x004143B5 -0x00400000),	// 状态AT 调整到一行
+			};
+			Nt_PatchMemory(p, countof(p), NULL, 0, hModule);
 		}
 
 		MEMORY_PATCH p[] =
