@@ -29,7 +29,7 @@ int		nDifficulty = 0;
 int		nSepithUpLimit = 0;
 int		nShowAT = 0;
 int		nShowConditionAT = 0;
-int     nConditionATColor = 0xFF00FF00;
+UINT    nConditionATColor = 0xFF00FF00;
 
 typedef struct
 {
@@ -359,20 +359,20 @@ L01:
 		}
 	}
 
-	void __stdcall ed6DisplayStatus()
+	void FASTCALL ed6DisplayStatus(ULONG dwThis, ED6_CHARACTER_BATTLE_INF* lpBattleInf)
 	{
 		if (g_bShowExtraInfo == false)
 		{
 			return;
 		}
-		DWORD	dwThis;
+		//DWORD	dwThis;
 		DWORD	dwY = dwYStart + 0xA;
 
-		ED6_CHARACTER_BATTLE_INF*	lpBattleInf;
+		//ED6_CHARACTER_BATTLE_INF*	lpBattleInf;
 
-		__asm mov dwThis,esi;
-		__asm sub ebx,0x2370
-		__asm mov lpBattleInf,ebx;
+		//__asm mov dwThis,esi;
+		//__asm sub ebx,0x2370
+		//__asm mov lpBattleInf,ebx;
 
 #if CONSOLE_DEBUG
 		QueryPerformanceCounter(&lStartCounter);
@@ -385,17 +385,17 @@ L01:
 		__asm
 		{
 			push 0x0;
-			MOV ECX,ESI;
+			MOV ECX,dwThis;
 			call lpfnResetRightBoard;
 			push 0x190;
 			push 0x8;
 			push addrDisplayStatusLine;
 			push dwYStart;
 			push 0x0;
-			MOV ECX,ESI;
+			MOV ECX,dwThis;
 			call lpfnDisplayText;
 			push 0x1;
-			MOV ECX,ESI;
+			MOV ECX,dwThis;
 			call lpfnResetRightBoard;
 		}
 
@@ -585,6 +585,9 @@ L01:
 L01:
 			//mov eax,0x52B1E0;
 			call addrDisplayStatusPatch2;
+            mov edx, ebx;
+            sub edx, 0x2370;
+            mov ecx, esi;
 			call ed6DisplayStatus;
 			//push 0x44AC36;
 			//ret;
@@ -592,20 +595,20 @@ L01:
 		}
 	}
 
-	void __stdcall ed6DisplayItemDrop()
+	void FASTCALL ed6DisplayItemDrop(ULONG dwThis, ED6_CHARACTER_BATTLE_INF* lpBattleInf)
 	{
 		if (g_bShowExtraInfo == false)
 		{
 			return;
 		}
-		DWORD	dwThis;
+		//DWORD	dwThis;
 		DWORD	dwY = 0x16;
 
-		ED6_CHARACTER_BATTLE_INF*	lpBattleInf;
+		//ED6_CHARACTER_BATTLE_INF*	lpBattleInf;
 		ED6_DROP_ITEM* lpDropItem;
 
-		__asm mov dwThis,esi;
-		__asm mov lpBattleInf,ebx;
+		//__asm mov dwThis,esi;
+		//__asm mov lpBattleInf,ebx;
 
 		char szBuffer[0x120];
 
@@ -937,73 +940,14 @@ L02:
 			push 0x190;
 			jmp addrDisplayItemDropPatch1;
 L01:
-			call ed6DisplayItemDrop;
+            mov edx, ebx;
+            mov ecx, esi;
+            call ed6DisplayItemDrop;
 			mov parShowExtraInfo,0;
 			jmp addrDisplayStatusPatch1;
 		}
 	}
-/*
-	void __cdecl ed6ChangeEnemyStatus(UINT SoldierNo, ED6_STATUS* pStatusSum, ED6_STATUS* pStatusBasic)
-	{
-		if (nDifficulty != 0)
-		{
-			SaturateConvert(&pStatusSum->HPMax, pStatusSum->HPMax * statusRateUserDefined.HP / 100);
-			SaturateConvert(&pStatusSum->HP, pStatusSum->HP * statusRateUserDefined.HP / 100);
-			SaturateConvert(&pStatusSum->STR, pStatusSum->STR * statusRateUserDefined.STR / 100);
-			SaturateConvert(&pStatusSum->DEF, pStatusSum->DEF * statusRateUserDefined.DEF / 100);
-			SaturateConvert(&pStatusSum->ATS, pStatusSum->ATS * statusRateUserDefined.ATS / 100);
-			SaturateConvert(&pStatusSum->ADF, pStatusSum->ADF * statusRateUserDefined.ADF / 100);
-			SaturateConvert(&pStatusSum->SPD, pStatusSum->SPD * statusRateUserDefined.SPD / 100);
-			SaturateConvert(&pStatusSum->DEX, pStatusSum->DEX * statusRateUserDefined.DEX / 100);
-			SaturateConvert(&pStatusSum->AGL, pStatusSum->AGL * statusRateUserDefined.AGL / 100);
-			SaturateConvert(&pStatusSum->MOV, pStatusSum->MOV * statusRateUserDefined.MOV / 100);
-			if (statusRateUserDefined.ResistAbnormalCondition)
-			{
-				((ED6_CHARACTER_BATTLE_INF*)addrSoldierNo0 + SoldierNo)->Resistance |= conditionAbnormal;
-			}
-			if (statusRateUserDefined.ResistAbilityDown)
-			{
-				((ED6_CHARACTER_BATTLE_INF*)addrSoldierNo0 + SoldierNo)->Resistance |= conditionDown;
-				((ED6_CHARACTER_BATTLE_INF*)addrSoldierNo0 + SoldierNo)->UnderAttackFlags |= 0x8;
-			}
-		}
-	}
 
-
-	void __cdecl ed6ChangeEnemyStatus(UINT SoldierNo, ED6_STATUS* pStatusSum, ED6_STATUS* pStatusBasic)
-	{
-		if (nDifficulty != 0)
-		{
-			ED6_CHARACTER_BATTLE_INF* lpBattleInf = (ED6_CHARACTER_BATTLE_INF*)addrSoldierNo0 + SoldierNo;
-
-			SHORT	DEX, AGL;
-			SaturateConvert(&DEX, lpBattleInf->StatusSum.DEX * statusRateUserDefined.DEX / 100);
-			SaturateConvert(&AGL, lpBattleInf->StatusSum.AGL * statusRateUserDefined.AGL / 100);
-			lpBattleInf->StatusSum.DEX = DEX < 0xCCC ? DEX : 0xCCC;
-			lpBattleInf->StatusSum.AGL = AGL < 0xCCC ? AGL : 0xCCC;
-
-			SaturateConvert(&lpBattleInf->StatusSum.HPMax, lpBattleInf->StatusSum.HPMax * statusRateUserDefined.HP / 100);
-			SaturateConvert(&lpBattleInf->StatusSum.HP, lpBattleInf->StatusSum.HP * statusRateUserDefined.HP / 100);
-			SaturateConvert(&lpBattleInf->StatusSum.STR, lpBattleInf->StatusSum.STR * statusRateUserDefined.STR / 100);
-			SaturateConvert(&lpBattleInf->StatusSum.DEF, lpBattleInf->StatusSum.DEF * statusRateUserDefined.DEF / 100);
-			SaturateConvert(&lpBattleInf->StatusSum.ATS, lpBattleInf->StatusSum.ATS * statusRateUserDefined.ATS / 100);
-			SaturateConvert(&lpBattleInf->StatusSum.ADF, lpBattleInf->StatusSum.ADF * statusRateUserDefined.ADF / 100);
-			SaturateConvert(&lpBattleInf->StatusSum.SPD, lpBattleInf->StatusSum.SPD * statusRateUserDefined.SPD / 100);
-			//SaturateConvert(&lpBattleInf->StatusSum.DEX, lpBattleInf->StatusSum.DEX * statusRateUserDefined.DEX / 100);
-			//SaturateConvert(&lpBattleInf->StatusSum.AGL, lpBattleInf->StatusSum.AGL * statusRateUserDefined.AGL / 100);
-			SaturateConvert(&lpBattleInf->StatusSum.MOV, lpBattleInf->StatusSum.MOV * statusRateUserDefined.MOV / 100);
-			if (statusRateUserDefined.ResistAbnormalCondition)
-			{
-				lpBattleInf->Resistance |= conditionAbnormal;
-			}
-			if (statusRateUserDefined.ResistAbilityDown)
-			{
-				lpBattleInf->Resistance |= conditionDown;
-				lpBattleInf->UnderAttackFlags |= 0x8;
-			}
-		}
-	}
-*/
 	void __cdecl ed6ChangeEnemyStatus(UINT SoldierNo, ED6_STATUS* pStatusSum, ED6_STATUS* pStatusBasic)
 	{
 		if (nDifficulty != 0 && !IsSoldierParty(SoldierNo))
@@ -1044,7 +988,14 @@ L01:
 	{
 		__asm
 		{
+            MOV EAX,DWORD PTR SS:[ESP+0x8];
+            MOV ECX,DWORD PTR SS:[ESP+0x4];
+            MOV EDX,DWORD PTR SS:[ESP];
+            push EAX;
+            push ECX;
+            push EDX;
 			call addrChangeEnemyStatusPatch2;
+            ADD ESP,0xC;
 			call ed6ChangeEnemyStatus;
 			jmp addrChangeEnemyStatusPatch1;
 		}
@@ -1215,21 +1166,21 @@ L01:
 		return resist;
 	}
 
-	void __stdcall ed6DisplayStatus()
+	void FASTCALL ed6DisplayStatus(ULONG dwThis, ED6_CHARACTER_BATTLE_INF* lpBattleInf)
 	{
 		if (g_bShowExtraInfo == false)
 		{
 			return;
 		}
-		DWORD	dwThis;
+		//DWORD	dwThis;
 		DWORD	dwY = dwYStart + 0xA;
 
-		ED6_CHARACTER_BATTLE_INF*	lpBattleInf;
+		//ED6_CHARACTER_BATTLE_INF*	lpBattleInf;
 
-		__asm mov dwThis,esi;
-		__asm mov eax, dword ptr[ebp];
-		__asm sub eax,0x2358
-		__asm mov lpBattleInf,eax;
+		//__asm mov dwThis,esi;
+		//__asm mov eax, dword ptr[ebp];
+		//__asm sub eax,0x2358
+		//__asm mov lpBattleInf,eax;
 
 		char szBuffer[0x120];
 		static char *szStatus[] = { "Level", " STR", " DEF", " ATS", " ADF", " SPD", " DEX", " AGL", " MOV" };
@@ -1238,17 +1189,17 @@ L01:
 		__asm
 		{
 			push 0x0;
-			MOV ECX,ESI;
+			MOV ECX,dwThis;
 			call lpfnResetRightBoard;
 			push 0x190;
 			push 0x8;
 			push addrDisplayStatusLine;
 			push dwYStart;
 			push 0x0;
-			MOV ECX,ESI;
+			MOV ECX,dwThis;
 			call lpfnDisplayText;
 			push 0x1;
-			MOV ECX,ESI;
+			MOV ECX,dwThis;
 			call lpfnResetRightBoard;
 		}
 
@@ -1461,6 +1412,9 @@ L01:
 		{
 			//mov eax,0x0048C410;
 			call addrDisplayStatusPatch2;
+            mov edx, ebp;
+            sub edx, 0x2358;
+            mov ecx, esi;
 			call ed6DisplayStatus;
 			//push 0x04418D5;
 			jmp addrDisplayStatusPatch1;
@@ -1507,7 +1461,14 @@ L01:
 	{
 		__asm
 		{
+            MOV EAX,DWORD PTR SS:[ESP+0x8];
+            MOV ECX,DWORD PTR SS:[ESP+0x4];
+            MOV EDX,DWORD PTR SS:[ESP];
+            push EAX;
+            push ECX;
+            push EDX;
 			call addrChangeEnemyStatusPatch2;
+            ADD ESP,0xC;
 			call ed6ChangeEnemyStatus;
 			jmp addrChangeEnemyStatusPatch1;
 		}
@@ -1666,20 +1627,20 @@ L01:
 		return resist;
 	}
 
-	void __stdcall ed6DisplayStatus()
+	void FASTCALL ed6DisplayStatus(ULONG dwThis, ED6_CHARACTER_BATTLE_INF* lpBattleInf)
 	{
 		if (g_bShowExtraInfo == false)
 		{
 			return;
 		}
-		DWORD	dwThis;
+		//DWORD	dwThis;
 		DWORD	dwY = dwYStart + 0xA;
 
-		ED6_CHARACTER_BATTLE_INF*	lpBattleInf;
+		//ED6_CHARACTER_BATTLE_INF*	lpBattleInf;
 
-		__asm mov dwThis,esi;
-		__asm sub ebx,0x22A8
-		__asm mov lpBattleInf,ebx;
+		//__asm mov dwThis,esi;
+		//__asm sub ebx,0x22A8
+		//__asm mov lpBattleInf,ebx;
 
 		char szBuffer[0x120];
 		static char *szStatus[] = { "Level", " STR", " DEF", " ATS", " ADF", " SPD", " DEX", " AGL", " MOV" };
@@ -1688,17 +1649,17 @@ L01:
 		__asm
 		{
 			push 0x0;
-			MOV ECX,ESI;
+			MOV ECX,dwThis;
 			call lpfnResetRightBoard;
 			push 0x190;
 			push 0x8;
 			push addrDisplayStatusLine;
 			push dwYStart;
 			push 0x0;
-			MOV ECX,ESI;
+			MOV ECX,dwThis;
 			call lpfnDisplayText;
 			push 0x1;
-			MOV ECX,ESI;
+			MOV ECX,dwThis;
 			call lpfnResetRightBoard;
 		}
 
@@ -1911,6 +1872,9 @@ L01:
 		{
 			//mov eax,0x00474E30;
 			call addrDisplayStatusPatch2;
+            mov edx, ebx;
+            sub edx, 0x22A8;
+            mov ecx, esi;
 			call ed6DisplayStatus;
 			//push 0x0043473C;
 			jmp addrDisplayStatusPatch1;
@@ -1957,7 +1921,14 @@ L01:
 	{
 		__asm
 		{
+            MOV EAX,DWORD PTR SS:[ESP+0x8];
+            MOV ECX,DWORD PTR SS:[ESP+0x4];
+            MOV EDX,DWORD PTR SS:[ESP];
+            push EAX;
+            push ECX;
+            push EDX;
 			call addrChangeEnemyStatusPatch2;
+            ADD ESP,0xC;
 			call ed6ChangeEnemyStatus;
 			jmp addrChangeEnemyStatusPatch1;
 		}
@@ -1993,37 +1964,110 @@ L01:
 	}
 }
 
+enum GameVersion
+{
+    ed6VersionUnknown = 0,
+    ed61min = 0x10000,
+    ed61cn7,
+    ed61jp7,
+
+    ed62min = 0x20000,
+    ed62cn7,
+    ed62jp7,
+    ed62jp1020,
+
+    ed63min = 0x40000,
+    ed63cn7,
+    ed63jp7,
+    ed63jp1002,
+} g_GameVersion;
+
+GameVersion getGameVersion()
+{
+    GameVersion gameVersion;
+    __try
+    {
+        //__asm INT 3;
+        // battleInf[0] t_magic
+        if (*(UINT*)0x401C93 == 0x672828 && *(UINT*)0x4A01F2 == 0x2DED814)
+        {
+            gameVersion = ed63cn7;
+        }
+        else if (*(UINT*)0x00401C33 == 0x60EF38 && *(UINT*)0x004C6342 == 0x2F2B9F8)
+        {
+            gameVersion = ed62cn7;
+        }
+        else if (*(UINT*)0x004019FF == 0x5A58D0 && *(UINT*)0x004A8492 == 0x1941780)
+        {
+            gameVersion = ed61cn7;
+        }
+        else if (*(UINT*)0x00401C93 == 0x66E780 && *(UINT*)0x0049F6F2 == 0x2DEADD0)
+        {
+            gameVersion = ed63jp7;
+        }
+        else if (*(UINT*)0x00401C33 == 0x60EDD8 && *(UINT*)0x004C5E92 == 0x2F2CDD8)
+        {
+            gameVersion = ed62jp7;
+        }
+        else if (*(UINT*)0x004019FF == 0x5A8370 && *(UINT*)0x004A8442 == 0x1944220)
+        {
+            gameVersion = ed61jp7;
+        }
+        else if (*(UINT*)0x00401C93 == 0x66E640 && *(UINT*)0x0049F4C2 == 0x2DE9338)
+        {
+            gameVersion = ed63jp1002;
+        }
+        else if (*(UINT*)0x00401C36 == 0x60DC98 && *(UINT*)0x004C5992 == 0x2F2A338)
+        {
+            gameVersion = ed62jp1020;
+        }
+        else
+        {
+            gameVersion = ed6VersionUnknown;
+        }
+    }
+    __except (EXCEPTION_EXECUTE_HANDLER)
+    {
+        gameVersion = ed6VersionUnknown;
+    }
+
+    return gameVersion;
+}
+
 void ConfigInit()
 {
-	char szConfigExPath[] = ".\\configEx.ini";
-	nDifficulty = NINI::GetPrivateProfileIntA("Battle", "Difficulty", 0, szConfigExPath);
-	if (nDifficulty != 0 && nDifficulty != 1)
-	{
-		nDifficulty = 0;
-	}
-	if (nDifficulty == 1)
-	{
-		statusRateUserDefined.HP = NINI::GetPrivateProfileIntA("Battle", "HP", 100, szConfigExPath);
-		statusRateUserDefined.STR = NINI::GetPrivateProfileIntA("Battle", "STR", 100, szConfigExPath);
-		statusRateUserDefined.DEF = NINI::GetPrivateProfileIntA("Battle", "DEF", 100, szConfigExPath);
-		statusRateUserDefined.ATS = NINI::GetPrivateProfileIntA("Battle", "ATS", 100, szConfigExPath);
-		statusRateUserDefined.ADF = NINI::GetPrivateProfileIntA("Battle", "ADF", 100, szConfigExPath);
-		statusRateUserDefined.SPD = NINI::GetPrivateProfileIntA("Battle", "SPD", 100, szConfigExPath);
-		statusRateUserDefined.DEX = NINI::GetPrivateProfileIntA("Battle", "DEX", 100, szConfigExPath);
-		statusRateUserDefined.AGL = NINI::GetPrivateProfileIntA("Battle", "AGL", 100, szConfigExPath);
-		statusRateUserDefined.MOV = NINI::GetPrivateProfileIntA("Battle", "MOV", 100, szConfigExPath);
-		statusRateUserDefined.ResistAbnormalCondition = NINI::GetPrivateProfileBoolA("Battle", "ResistAbnormalCondition", false, szConfigExPath);
-		statusRateUserDefined.ResistAbilityDown = NINI::GetPrivateProfileBoolA("Battle", "ResistAbilityDown", false, szConfigExPath);
+    char szConfigExPath[] = ".\\configEx.ini";
+    nDifficulty = NINI::GetPrivateProfileIntA("Battle", "Difficulty", 0, szConfigExPath);
+    if (nDifficulty != 0 && nDifficulty != 1)
+    {
+        nDifficulty = 0;
+    }
+    if (nDifficulty == 1)
+    {
+        statusRateUserDefined.HP = NINI::GetPrivateProfileIntA("Battle", "HP", 100, szConfigExPath);
+        statusRateUserDefined.STR = NINI::GetPrivateProfileIntA("Battle", "STR", 100, szConfigExPath);
+        statusRateUserDefined.DEF = NINI::GetPrivateProfileIntA("Battle", "DEF", 100, szConfigExPath);
+        statusRateUserDefined.ATS = NINI::GetPrivateProfileIntA("Battle", "ATS", 100, szConfigExPath);
+        statusRateUserDefined.ADF = NINI::GetPrivateProfileIntA("Battle", "ADF", 100, szConfigExPath);
+        statusRateUserDefined.SPD = NINI::GetPrivateProfileIntA("Battle", "SPD", 100, szConfigExPath);
+        statusRateUserDefined.DEX = NINI::GetPrivateProfileIntA("Battle", "DEX", 100, szConfigExPath);
+        statusRateUserDefined.AGL = NINI::GetPrivateProfileIntA("Battle", "AGL", 100, szConfigExPath);
+        statusRateUserDefined.MOV = NINI::GetPrivateProfileIntA("Battle", "MOV", 100, szConfigExPath);
+        statusRateUserDefined.ResistAbnormalCondition = NINI::GetPrivateProfileBoolA("Battle", "ResistAbnormalCondition", false, szConfigExPath);
+        statusRateUserDefined.ResistAbilityDown = NINI::GetPrivateProfileBoolA("Battle", "ResistAbilityDown", false, szConfigExPath);
 
-	}
+    }
 
-	nSepithUpLimit = NINI::GetPrivateProfileIntA("Battle", "SepithUpLimit", 0, szConfigExPath);
-	SaturateConvertEx(&nSepithUpLimit, nSepithUpLimit, 9999, 0);
-	nShowAT = NINI::GetPrivateProfileIntA("Battle", "ShowAT", 1, szConfigExPath);
-	if (nShowAT < 0 || nShowAT > 2)	nShowAT = 1;
-	nShowConditionAT = NINI::GetPrivateProfileIntA("Battle", "ShowConditionAT", 1, szConfigExPath);
-	if (nShowConditionAT != 0 && nShowConditionAT != 3 && nShowConditionAT != 5)	nShowConditionAT = 1;
-    nConditionATColor = NINI::GetPrivateProfileIntA("Battle", "ConditionATColor", 0xFF00FF00, szConfigExPath);
+    nSepithUpLimit = NINI::GetPrivateProfileIntA("Battle", "SepithUpLimit", 0, szConfigExPath);
+    SaturateConvertEx(&nSepithUpLimit, nSepithUpLimit, 9999, 0);
+
+    nShowAT = NINI::GetPrivateProfileIntA("Battle", "ShowAT", 1, szConfigExPath);
+    if (nShowAT < 0 || nShowAT > 2)	nShowAT = 1;
+
+    nShowConditionAT = NINI::GetPrivateProfileIntA("Battle", "ShowConditionAT", 1, szConfigExPath);
+    if (nShowConditionAT != 0 && nShowConditionAT != 3 && nShowConditionAT != 5)	nShowConditionAT = 1;
+
+    nConditionATColor = NINI::GetPrivateProfileIntA("Battle", "ConditionATColor", FLAG_ON(g_GameVersion, ed63min) ? -1 : 0xFF00FF00, szConfigExPath);
 
 #if CONSOLE_DEBUG
     PrintConsoleW(L"%s: 0x%X\r\n", L"ConditionATColor", nConditionATColor);
@@ -2033,49 +2077,13 @@ void ConfigInit()
 void Init()
 {
 #if 1
-	enum GameVersion {	ed61cn7, ed62cn7, ed63cn7, 
-						ed61jp7, ed62jp7, ed63jp7,
-						ed61jp1, ed62jp1, ed63jp1002, ed62jp1020, } gameVersion;
-	// battleInf[0] t_magic
-	if (*(UINT*)0x401C93 == 0x672828 && *(UINT*)0x4A01F2 == 0x2DED814)
-	{
-		gameVersion = ed63cn7;
-	}
-	else if (*(UINT*)0x00401C33 == 0x60EF38 && *(UINT*)0x004C6342 == 0x2F2B9F8)
-	{
-		gameVersion = ed62cn7;
-	}
-	else if (*(UINT*)0x004019FF == 0x5A58D0 && *(UINT*)0x004A8492 == 0x1941780)
-	{
-		gameVersion = ed61cn7;
-	}
-	else if (*(UINT*)0x00401C93 == 0x66E780 && *(UINT*)0x0049F6F2 == 0x2DEADD0)
-	{
-		gameVersion = ed63jp7;
-	}
-	else if (*(UINT*)0x00401C33 == 0x60EDD8 && *(UINT*)0x004C5E92 == 0x2F2CDD8)
-	{
-		gameVersion = ed62jp7;
-	}
-	else if (*(UINT*)0x004019FF == 0x5A8370 && *(UINT*)0x004A8442 == 0x1944220)
-	{
-		gameVersion = ed61jp7;
-	}
-	else if (*(UINT*)0x00401C93 == 0x66E640 && *(UINT*)0x0049F4C2 == 0x2DE9338)
-	{
-		gameVersion = ed63jp1002;
-	}
-	else if (*(UINT*)0x00401C36 == 0x60DC98 && *(UINT*)0x004C5992 == 0x2F2A338)
-	{
-		gameVersion = ed62jp1020;
-	}
-	else
-	{
 
-        //MessageBoxW(NULL, L"invalid game version, patch will not work.\r\n不支持的游戏版本，本补丁无效。", L"warning!", MB_ICONWARNING);
-		return;
-	}
-
+    GameVersion gameVersion = getGameVersion();
+    if (gameVersion == ed6VersionUnknown)
+    {
+        return;
+    }
+    g_GameVersion = gameVersion;
 	ConfigInit();
 
 	HMODULE hModule = Nt_GetExeModuleHandle();
