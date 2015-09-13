@@ -18,7 +18,7 @@ NoInline BOOL IsCodeDecompressed()
     {
         static ULONG Signature[] =
         {
-		    0xe9003ffa, 0x0024ca08, 0x0e8a03e9, 0x78cee900,
+            0xe9003ffa, 0x0024ca08, 0x0e8a03e9, 0x78cee900,
             0xf9e90025, 0xe900276e, 0x00225f64, 0x0c354fe9,
             0x54dae900, 0xb5e90025, 0xe900033e, 0x004ebe90
         };
