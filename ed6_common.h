@@ -236,6 +236,21 @@ typedef struct
 } ED6_CRAFT_INTRO;
 typedef ED6_CRAFT_INTRO ED7_CRAFT_INTRO;
 
+enum
+{
+    CHR_FLAG_ENEMY  = 0x1000,
+    CHR_FLAG_NPC    = 0x2000,
+    CHR_FLAG_PARTY  = 0x4000,
+    CHR_FLAG_EMPTY  = 0x8000,
+};
+
+enum
+{
+    CHR_FLAG_ResistBeatBack     = 0x0200,
+    CHR_FLAG_ResistATDelay      = 0x0800,
+    CHR_FLAG_AbsoluteMiss       = 0x2000,
+};
+
 namespace NED61
 {
 	typedef struct // 0x23C8
@@ -246,9 +261,13 @@ namespace NED61
 			struct
 			{
 				USHORT              SoldierNo;                  // 我方0-7，敌方8-15，支援16-19，待分身20-21
+                USHORT              RoleFlag;
+                USHORT              HitFlag;
+                /*
 				USHORT				Flags;                      // 10 敌方 40 己方 ...
 				BYTE				DeathFlags;                 // 02 不参与战场胜利判定 04 死后留在战场上
 				BYTE				UnderAttackFlags;           // 08 Resist ATDelay 02 不被击退 01 被攻击不转身(3D)  10 无法被攻击到  20 强制miss
+                */
 				DUMMY_STRUCT(4);
 				USHORT              CharacterIndex;
 				//DUMMY_STRUCT(2);
@@ -269,10 +288,8 @@ namespace NED61
 				DUMMY_STRUCT(6);
 				USHORT				AIType;
 				DUMMY_STRUCT(2);
-				ushort				DropIndex1;                 // 掉落物 物品代码
-				ushort				DropIndex2;
-				ubyte				DropProbability1;           // 掉落概率
-				ubyte				DropProbability2;   
+				ushort				DropIndex[2];               // 掉落物 物品代码
+				ubyte				DropProbability[2];         // 掉落概率 
 				ubyte				Sex; 
 				DUMMY_STRUCT(1);
 				ushort				Equip[5];                   // 装备
@@ -315,9 +332,13 @@ namespace NED62
 			struct
 			{
 				USHORT              SoldierNo;                  // 我方0-7，敌方8-15，支援16-19，待分身20-21
+                USHORT              RoleFlag;
+                USHORT              HitFlag;
+                /*
 				USHORT				Flags;                      // 10 敌方 40 己方 ...
 				BYTE				DeathFlags;                 // 02 不参与战场胜利判定 04 死后留在战场上
 				BYTE				UnderAttackFlags;           // 08 Resist ATDelay 02 不被击退 01 被攻击不转身(3D)  10 无法被攻击到  20 强制miss
+                */
 				DUMMY_STRUCT(4);
 				USHORT              CharacterIndex;
 				//DUMMY_STRUCT(2);
@@ -337,10 +358,8 @@ namespace NED62
 				int					AT2;
 				DUMMY_STRUCT(6);
 				USHORT				AIType;
-				ushort				DropIndex1;                 // 掉落物 物品代码
-				ushort				DropIndex2;
-				ubyte				DropProbability1;           // 掉落概率
-				ubyte				DropProbability2;   
+				ushort				DropIndex[2];               // 掉落物 物品代码
+				ubyte				DropProbability[2];         // 掉落概率 
 				ubyte				Sex; 
 				DUMMY_STRUCT(1);
 				ushort				Equip[5];                   // 装备
@@ -384,9 +403,13 @@ namespace NED63
 			struct
 			{
 				USHORT              SoldierNo;                  // 我方0-7，敌方8-15，支援16-19，待分身20-21
+                USHORT              RoleFlag;
+                USHORT              HitFlag;
+                /*
 				USHORT				Flags;                      // 10 敌方 40 己方 ...
 				BYTE				DeathFlags;                 // 02 不参与战场胜利判定 04 死后留在战场上
 				BYTE				UnderAttackFlags;           // 08 Resist ATDelay 02 不被击退 01 被攻击不转身(3D)  10 无法被攻击到  20 强制miss
+                */
 				DUMMY_STRUCT(4);
 				USHORT              CharacterIndex;
 				DUMMY_STRUCT(2);
@@ -411,10 +434,8 @@ namespace NED63
 				int					AT2;
 				DUMMY_STRUCT(4);
 				USHORT				AIType;
-				ushort				DropIndex[2];                 // 掉落物 物品代码
-				//ushort				DropIndex2;
-				ubyte				DropProbability[2];           // 掉落概率
-				//ubyte				DropProbability2;   
+				ushort				DropIndex[2];               // 掉落物 物品代码
+				ubyte				DropProbability[2];         // 掉落概率   
 				ubyte				Sex; 
 				DUMMY_STRUCT(1);
 				ushort				Equip[5];                   // 装备
