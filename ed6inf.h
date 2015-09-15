@@ -6,7 +6,7 @@
 
 bool  g_bShowExtraInfo = true;
 bool  g_bDisplayBattleIcoEx = false;
-int parShowExtraInfo = 0;
+int   g_bShowInfoPage2 = 0;
 
 #if CONSOLE_DEBUG
 LARGE_INTEGER lFrequency, lStopCounter, lStartCounter;
@@ -35,7 +35,7 @@ int     nDifficulty = 0;
 int     nSepithUpLimit = 0;
 int     nShowAT = 0;
 int     nShowConditionAT = 0;
-UINT    nConditionATColor = 0xFF00FF00;
+UINT    nConditionATColor = 0;
 
 typedef struct
 {
@@ -63,6 +63,31 @@ enum
     COLOR_TITLE     = 0xB,
 
     COLOR_MAXIMUM   = 21,
+};
+
+enum
+{
+    SHOW_AT_NONE        = 0,
+    SHOW_AT_SIMPLE      = 1,
+    SHOW_AT_ORIGINAL    = 2,
+
+    SHOW_AT_DEFAULT     = SHOW_AT_SIMPLE,
+};
+
+enum
+{
+    SHOW_CONDITION_AT_NONE      = 0,
+    SHOW_CONDITION_AT_HIDE99    = 1,
+    SHOW_CONDITION_AT_MAX99     = 3,
+    SHOW_CONDITION_AT_ORIGINAL  = 5,
+
+    SHOW_CONDITION_AT_DEFAULT   = SHOW_CONDITION_AT_HIDE99,
+};
+
+enum
+{
+    CONDITION_AT_COLOR_ORIGINAL = 0xFFFFFFFF,
+    CONDITION_AT_COLOR_GREEN    = 0xFF00FF00,
 };
 
 BOOL WINAPI PeekMessageAOld(LPMSG lpMsg, HWND hWnd, UINT wMsgFilterMin, UINT wMsgFilterMax, UINT wRemoveMsg)
@@ -738,10 +763,10 @@ L01:
             cmp ax, 0x41;
             je L01;
 L02:
-            mov parShowExtraInfo,0;
+            mov g_bShowInfoPage2,0;
             jmp ed6DisplayGetParOld;
 L01:
-            mov parShowExtraInfo,1;
+            mov g_bShowInfoPage2,1;
             jmp ed6DisplayGetParOld;
         }
     }
@@ -756,9 +781,10 @@ L01:
         #pragma warning (disable: 4414)
         __asm
         {
-            cmp parShowExtraInfo,1;
-            jne ed6DisplayResetWidthOld;
-            add dword ptr[ESP+8], 0x9;
+            cmp g_bShowInfoPage2,1;
+            jne L01;
+            add dword ptr[ESP+8], 0xA;
+        L01:
             jmp ed6DisplayResetWidthOld;
         }
         #pragma warning (default: 4414)
@@ -794,7 +820,7 @@ L01:
             je L01;
 L02:
 */
-            cmp parShowExtraInfo,1;
+            cmp g_bShowInfoPage2,1;
             je L01;
             push 0x190;
             jmp addrDisplayItemDropPatch1;
@@ -802,7 +828,7 @@ L01:
             push ebx;
             mov ecx, esi;
             call CBattleInfoBox::ed6DisplayItemDrop;
-            mov parShowExtraInfo,0;
+            mov g_bShowInfoPage2,0;
             jmp addrDisplayStatusPatch1;
         }
     }
@@ -865,13 +891,14 @@ L01:
     }
     void __cdecl ed6ShowConditionAtNew(ULONG AT, float x, float y, ULONG color)
     {
-        if (nShowConditionAT == 1 || nShowConditionAT == 3)
+        if (nShowConditionAT == SHOW_CONDITION_AT_HIDE99 || nShowConditionAT == SHOW_CONDITION_AT_MAX99)
         {
             if (AT > 99)
             {
-                if (nShowConditionAT == 1) return;
+                if (nShowConditionAT == SHOW_CONDITION_AT_HIDE99) return;
                 AT = 99;
             }
+
             if (AT < 10)
             {
                 x += (16.f * resolution->cx / 640.f - 8.f * 1) / 2;
@@ -1259,11 +1286,11 @@ L01:
     }
     void __cdecl ed6ShowConditionAtNew(ULONG AT, float x, float y, float width, float height, ULONG a6, ULONG a7, ULONG color)
     {
-        if (nShowConditionAT == 1 || nShowConditionAT == 3)
+        if (nShowConditionAT == SHOW_CONDITION_AT_HIDE99 || nShowConditionAT == SHOW_CONDITION_AT_MAX99)
         {
             if (AT > 99)
             {
-                if (nShowConditionAT == 1) return;
+                if (nShowConditionAT == SHOW_CONDITION_AT_HIDE99) return;
                 AT = 99;
             }
 
@@ -1286,6 +1313,10 @@ L01:
 
         //ed6ShowConditionAtOld(AT, x, y, width * resolution->cx / 640.f, height * resolution->cy / 480.f, a6, a7, a8);
         ed6ShowConditionAtOld(AT, x, y, width, height, a6, a7, nConditionATColor);
+    }
+    void __cdecl ed6ShowConditionAtNewLi(ULONG AT, float x, float y, float width, float height, ULONG a6, ULONG a7, ULONG color)
+    {
+        ed6ShowConditionAtNew(AT, x, y - 8.f * resolution->cy / 480.f, width, height, a6, a7, color);
     }
 }
 
@@ -1633,11 +1664,11 @@ L01:
     }
     void __cdecl ed6ShowConditionAtNew(ULONG AT, float x, float y, float width, float height, ULONG a6, ULONG a7, ULONG color)
     {
-        if (nShowConditionAT == 1 || nShowConditionAT == 3)
+        if (nShowConditionAT == SHOW_CONDITION_AT_HIDE99 || nShowConditionAT == SHOW_CONDITION_AT_MAX99)
         {
             if (AT > 99)
             {
-                if (nShowConditionAT == 1) return;
+                if (nShowConditionAT == SHOW_CONDITION_AT_HIDE99) return;
                 AT = 99;
             }
 
@@ -1754,13 +1785,24 @@ void ConfigInit()
     nSepithUpLimit = NINI::GetPrivateProfileIntA("Battle", "SepithUpLimit", 0, szConfigExPath);
     SaturateConvertEx(&nSepithUpLimit, nSepithUpLimit, 9999, 0);
 
-    nShowAT = NINI::GetPrivateProfileIntA("Battle", "ShowAT", 1, szConfigExPath);
-    if (nShowAT < 0 || nShowAT > 2) nShowAT = 1;
+    nShowAT = NINI::GetPrivateProfileIntA("Battle", "ShowAT", SHOW_AT_DEFAULT, szConfigExPath);
+    if (nShowAT != SHOW_AT_NONE &&
+        nShowAT != SHOW_AT_SIMPLE &&
+        nShowAT != SHOW_AT_ORIGINAL)
+    {
+        nShowAT = SHOW_AT_DEFAULT;
+    }
 
-    nShowConditionAT = NINI::GetPrivateProfileIntA("Battle", "ShowConditionAT", 1, szConfigExPath);
-    if (nShowConditionAT != 0 && nShowConditionAT != 3 && nShowConditionAT != 5)    nShowConditionAT = 1;
+    nShowConditionAT = NINI::GetPrivateProfileIntA("Battle", "ShowConditionAT", SHOW_CONDITION_AT_DEFAULT, szConfigExPath);
+    if (nShowConditionAT != SHOW_CONDITION_AT_NONE && 
+        nShowConditionAT != SHOW_CONDITION_AT_HIDE99 && 
+        nShowConditionAT != SHOW_CONDITION_AT_MAX99 && 
+        nShowConditionAT != SHOW_CONDITION_AT_ORIGINAL)
+    {
+        nShowConditionAT = SHOW_CONDITION_AT_DEFAULT;
+    }
 
-    nConditionATColor = NINI::GetPrivateProfileIntA("Battle", "ConditionATColor", FLAG_ON(g_GameVersion, ed63min) ? -1 : 0xFF00FF00, szConfigExPath);
+    nConditionATColor = NINI::GetPrivateProfileIntA("Battle", "ConditionATColor", FLAG_ON(g_GameVersion, ed63min) ? CONDITION_AT_COLOR_ORIGINAL : CONDITION_AT_COLOR_GREEN, szConfigExPath);
 
 #if CONSOLE_DEBUG
     PrintConsoleW(L"%s: 0x%X\r\n", L"ConditionATColor", nConditionATColor);
@@ -1851,7 +1893,7 @@ void Init()
 
         }
 
-        if ((nShowConditionAT == 1 || nShowConditionAT == 3) && resolution->cx >= 800)  // 状态AT 调整到一行
+        if ((nShowConditionAT == SHOW_CONDITION_AT_HIDE99 || nShowConditionAT == SHOW_CONDITION_AT_MAX99) && resolution->cx >= 800)  // 状态AT 调整到一行
         {
             MEMORY_PATCH p[] =
             {
@@ -1972,7 +2014,7 @@ void Init()
 
         }
 
-        if ((nShowConditionAT == 1 || nShowConditionAT == 3) && resolution->cx >= 800)  // 状态AT 调整到一行
+        if ((nShowConditionAT == SHOW_CONDITION_AT_HIDE99 || nShowConditionAT == SHOW_CONDITION_AT_MAX99) && resolution->cx >= 800)  // 状态AT 调整到一行
         {
             MEMORY_PATCH p[] =
             {
@@ -2097,7 +2139,7 @@ void Init()
 
         }
 
-        if ((nShowConditionAT == 1 || nShowConditionAT == 3) && resolution->cx >= 800)  // 状态AT 调整到一行
+        if ((nShowConditionAT == SHOW_CONDITION_AT_HIDE99 || nShowConditionAT == SHOW_CONDITION_AT_MAX99) && resolution->cx >= 800)  // 状态AT 调整到一行
         {
             MEMORY_PATCH p[] =
             {
@@ -2170,7 +2212,7 @@ void Init()
 
         }
 
-        if ((nShowConditionAT == 1 || nShowConditionAT == 3) && resolution->cx >= 800)  // 状态AT 调整到一行
+        if ((nShowConditionAT == SHOW_CONDITION_AT_HIDE99 || nShowConditionAT == SHOW_CONDITION_AT_MAX99) && resolution->cx >= 800)  // 状态AT 调整到一行
         {
             MEMORY_PATCH p[] =
             {
@@ -2271,7 +2313,7 @@ void Init()
 
         }
 
-        if ((nShowConditionAT == 1 || nShowConditionAT == 3) && resolution->cx >= 800)  // 状态AT 调整到一行
+        if ((nShowConditionAT == SHOW_CONDITION_AT_HIDE99 || nShowConditionAT == SHOW_CONDITION_AT_MAX99) && resolution->cx >= 800)  // 状态AT 调整到一行
         {
             MEMORY_PATCH p[] =
             {
@@ -2382,13 +2424,18 @@ void Init()
 
         if (*(UINT*)0x004413BC == 0x02CFE5DB) // 理之补丁 at调整为一列
         {
-            if (nShowConditionAT != 0)
+            if (nShowConditionAT != SHOW_CONDITION_AT_NONE)
             {
                 __asm OR BYTE PTR DS:[0x2EDF77C],0x1;
             }
+            nShowConditionAT = SHOW_CONDITION_AT_MAX99;
+            nConditionATColor = CONDITION_AT_COLOR_ORIGINAL;
             MEMORY_PATCH p1[] =
             {
                 //PATCH_MEMORY(p004339F9,   6, 0x0339F9),   // AT 显示减少
+                PATCH_MEMORY(0x549330,  4, 0x00419846 -0x00400000), // 状态AT调整恢复
+                PATCH_MEMORY(0x549330,  4, 0x00419853 -0x00400000), // 状态AT调整恢复
+
                 PATCH_MEMORY(0x00077201,4, 0x004D0F1B -0x00400000), // CPUtest
                 PATCH_MEMORY(p004CDEE2, sizeof(p004CDEE2), 0x004CDEE2 -0x00400000), // CPU手册
                 PATCH_MEMORY(p00548120, sizeof(p00548120), 0x00548120 -0x00400000), // new Code
@@ -2396,12 +2443,13 @@ void Init()
             MEMORY_FUNCTION_PATCH f1[] =
             {
                 PATCH_FUNCTION(JUMP, NOT_RVA, addrChangeEnemyStatusPatch0,  ed6ChangeEnemyStatusPatch, 0),
+                PATCH_FUNCTION(JUMP, NOT_RVA, 0x004A9530,   ed6ShowConditionAtNewLi, 5, ed6ShowConditionAtOld), // 状态AT不同分辨率居中显示，li状态图标上移，所以特殊对待
             };
             Nt_PatchMemory(p1, countof(p1), f1, countof(f1),  hModule);
             return;
         }
 
-        if ((nShowConditionAT == 1 || nShowConditionAT == 3) && resolution->cx >= 800)  // 状态AT 调整到一行
+        if ((nShowConditionAT == SHOW_CONDITION_AT_HIDE99 || nShowConditionAT == SHOW_CONDITION_AT_MAX99) && resolution->cx >= 800)  // 状态AT 调整到一行
         {
             MEMORY_PATCH p[] =
             {
@@ -2470,7 +2518,7 @@ void Init()
 
         }
 
-        if ((nShowConditionAT == 1 || nShowConditionAT == 3) && resolution->cx >= 800)  // 状态AT 调整到一行
+        if ((nShowConditionAT == SHOW_CONDITION_AT_HIDE99 || nShowConditionAT == SHOW_CONDITION_AT_MAX99) && resolution->cx >= 800)  // 状态AT 调整到一行
         {
             MEMORY_PATCH p[] =
             {
@@ -2507,7 +2555,8 @@ void Init()
             PATCH_FUNCTION(CALL, NOT_RVA, addrDisplayBattleIcoEx0,      NED63::ed6DisplayBattleIcoEx, 1),
             PATCH_FUNCTION(JUMP, NOT_RVA, addrDisplayStatusPatch0,      ed6DisplayStatusPatch, 0),
             PATCH_FUNCTION(JUMP, NOT_RVA, addrChangeEnemyStatusPatch0,  ed6ChangeEnemyStatusPatch, 0),
-            PATCH_FUNCTION(JUMP, NOT_RVA, 0x00490A50,   ed6ShowConditionAtNew, 5, ed6ShowConditionAtOld),
+            //PATCH_FUNCTION(JUMP, NOT_RVA, 0x00490A50,   ed6ShowConditionAtNew, 5, ed6ShowConditionAtOld),
+            PATCH_CALL    (CALL, NOT_RVA, 0x00414560,   ed6ShowConditionAtNew, 0, ed6ShowConditionAtOld),
             // INLINE_HOOK(Nt_GetProcAddress(Nt_GetModuleHandle(L"kernel32.dll"), "OutputDebugStringA"), PrintDebugStringA, NULL),
         };
         Nt_PatchMemory(p, countof(p), f, countof(f), hModule);
@@ -2571,7 +2620,7 @@ void Init()
 
         }
 
-        if ((nShowConditionAT == 1 || nShowConditionAT == 3) && resolution->cx >= 800)  // 状态AT 调整到一行
+        if ((nShowConditionAT == SHOW_CONDITION_AT_HIDE99 || nShowConditionAT == SHOW_CONDITION_AT_MAX99) && resolution->cx >= 800)  // 状态AT 调整到一行
         {
             MEMORY_PATCH p[] =
             {
@@ -2597,7 +2646,8 @@ void Init()
             PATCH_FUNCTION(CALL, NOT_RVA, addrDisplayBattleIcoEx0,      NED63::ed6DisplayBattleIcoEx, 1),
             PATCH_FUNCTION(JUMP, NOT_RVA, addrDisplayStatusPatch0,      ed6DisplayStatusPatch, 0),
             PATCH_FUNCTION(JUMP, NOT_RVA, addrChangeEnemyStatusPatch0,  ed6ChangeEnemyStatusPatch, 0),
-            PATCH_FUNCTION(JUMP, NOT_RVA, 0x00490930,   ed6ShowConditionAtNew, 5, ed6ShowConditionAtOld),
+            //PATCH_FUNCTION(JUMP, NOT_RVA, 0x00490930,   ed6ShowConditionAtNew, 5, ed6ShowConditionAtOld),
+            PATCH_CALL    (CALL, NOT_RVA, 0x004143F0,   ed6ShowConditionAtNew, 0, ed6ShowConditionAtOld),
             // INLINE_HOOK(Nt_GetProcAddress(Nt_GetModuleHandle(L"kernel32.dll"), "OutputDebugStringA"), PrintDebugStringA, NULL),
         };
         Nt_PatchMemory(p, countof(p), f, countof(f), hModule);
