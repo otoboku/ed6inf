@@ -29,7 +29,7 @@ typedef struct
     int b;
 } structAB;
 
-structAB battleIcoRec = {16, 8};
+POINT   battleIcoRec = {16, 8};
 
 int     nDifficulty = 0;
 int     nSepithUpLimit = 0;
@@ -300,8 +300,8 @@ L01:
         {
             test g_bDisplayBattleIcoEx,0x1;
             je L01;
-            mov ecx,battleIcoRec.a;
-            mov eax,battleIcoRec.b;
+            mov ecx,battleIcoRec.x;
+            mov eax,battleIcoRec.y;
             add ecx,edx;
             add eax,ebp;
             and g_bDisplayBattleIcoEx,0x0;
@@ -313,104 +313,9 @@ L01:
         }
     }
 
-    FILE_IN_DIR*  __stdcall getFileInDirInf(FileIndex* fileIndex)
+    FILE_IN_DIR* getFileInDirInf(FileIndex* fileIndex)
     {
         return (FILE_IN_DIR*)(*(addrLPDir0 + (fileIndex->DatNo))) + fileIndex->Index;
-    }
-
-    RESISTANCE __stdcall ed6GetResistance(ED6_CHARACTER_BATTLE_INF* lpBattleInf)
-    {
-        UINT addr;
-        RESISTANCE resist = lpBattleInf->Resistance;
-        for (int i = 3; i < 5; i++)
-        {
-            if (lpBattleInf->Equip[i] == 0)
-            {
-                continue;
-            }
-            addr = getItemInf(lpBattleInf->Equip[i]);
-
-            if (*(byte*)(addr+5) != 1)
-            {
-                continue;
-            }
-
-            __asm xor ebx,ebx;
-            switch (*(byte*)(addr+6))
-            {
-            case 1:
-                __asm or BL,0x1;
-                break;
-            case 2:
-                __asm or BL,0x2;
-                break;
-            case 3:
-                __asm or BL,0x4;
-                break;
-            case 4:
-                __asm or BL,0x8;
-                break;
-            case 5:
-                __asm or BL,0x10;
-                break;
-            case 6:
-                __asm or BL,0x20;
-                break;
-            case 7:
-                __asm or BL,0x40;
-                break;
-            case 8:
-                __asm or BL,0x80;
-                break;
-            case 9:
-                __asm or BH,0x1;
-                break;
-            case 10:
-                __asm or BH,0x2;
-                break;
-            case 11:
-                __asm or BL,0x6;
-                break;
-            case 12:
-                __asm or EBX,0x108;
-                break;
-            case 13:
-                __asm or EBX,0x3FF;
-                break;
-            case 14:
-                __asm or BL,0x2A;
-                break;
-            case 15:
-                __asm or BL,0x21;
-                break;
-            case 16:
-                __asm or BL,0x88;
-                break;
-            case 17:
-                __asm or BL,0x3;
-                break;
-            case 18:
-                __asm or BL,0x50;
-                break;
-            case 19:
-                __asm or EBX,0x204;
-                break;
-            case 20:
-                __asm or EBX,0x208000;
-                break;
-            case 21:
-                __asm or EBX,0x8A0000;
-                break;
-            case 22:
-                __asm or EBX,0x2AA8000;
-                break;
-            case 23:
-                __asm or EBX,0x2AA8000;
-                __asm or EBX,0x3FF;
-            }
-            __asm or resist,EBX
-        }
-        return resist;
     }
 
     ASM ED6_CHARACTER_BATTLE_INF* getSoldierAddr()
@@ -425,141 +330,6 @@ L01:
             ADD EAX,addrSoldierNo0;
             ret;
         }
-    }
-
-    VOID THISCALL CBattleInfoBox::ed6DisplayStatus(ED6_CHARACTER_BATTLE_INF* lpBattleInf)
-    {
-        if (g_bShowExtraInfo == false)
-        {
-            return;
-        }
-
-        DWORD   dwY = dwYStart;
-
-#if CONSOLE_DEBUG
-        QueryPerformanceCounter(&lStartCounter);
-#endif
-
-        char szBuffer[0x120];
-        static char *szStatus[] = { "Level", " STR", " DEF", " ATS", " ADF", " SPD", " DEX", " AGL", " MOV" };
-
-        /*显示分界线*/
-        SetTextSize(0);
-        DrawSimpleText(0, dwY, (PCSTR)lpcStatusLine, COLOR_LINE);
-        SetTextSize(1);
-        dwY += 0xA;
-
-        int i;
-        for (i = 0; i < countof(szStatus); i++, dwY+=0xC)
-        {
-            sprintf(szBuffer, "%s", szStatus[i]);
-            DrawSimpleText(0, dwY, szBuffer, COLOR_TITLE);
-
-            switch (i)
-            {
-            case 0:
-                sprintf(szBuffer, "%21d", lpBattleInf->StatusBasic.Level);
-                break;
-            case 1:
-                sprintf(szBuffer, "       %6d  %6d", lpBattleInf->StatusBasic.STR, lpBattleInf->StatusSum.STR);
-                break;
-            case 2:
-                sprintf(szBuffer, "       %6d  %6d", lpBattleInf->StatusBasic.DEF, lpBattleInf->StatusSum.DEF);
-                break;
-            case 3:
-                sprintf(szBuffer, "       %6d  %6d", lpBattleInf->StatusBasic.ATS, lpBattleInf->StatusSum.ATS);
-                break;
-            case 4:
-                sprintf(szBuffer, "       %6d  %6d", lpBattleInf->StatusBasic.ADF, lpBattleInf->StatusSum.ADF);
-                break;
-            case 5:
-                sprintf(szBuffer, "       %6d  %6d", lpBattleInf->StatusBasic.SPD, lpBattleInf->StatusSum.SPD);
-                break;
-            case 6:
-                sprintf(szBuffer, "       %6d  %6d", lpBattleInf->StatusBasic.DEX, lpBattleInf->StatusSum.DEX);
-                break;
-            case 7:
-                sprintf(szBuffer, "       %6d  %6d", lpBattleInf->StatusBasic.AGL, lpBattleInf->StatusSum.AGL);
-                break;
-            case 8:
-                sprintf(szBuffer, "       %6d  %6d", lpBattleInf->StatusBasic.MOV, lpBattleInf->StatusSum.MOV);
-                break;
-            }
-
-            DrawSimpleText(0, dwY, szBuffer);
-        }
-
-        /*显示抗性*/
-        POINT   target = {0, (LONG)dwY};
-        POINT   icon;
-
-        PFLOAT  pf;
-        ULONG   nFind = 0;
-        ULONG   condition;
-        RESISTANCE resist = ed6GetResistance(lpBattleInf);
-        for (i = 0, pf = (PFLOAT)addrConditionIconPointBegin; pf < (PFLOAT)addrConditionIconPointEnd; ++i, pf += 2)
-        {
-            condition = EnumCondition(i);
-
-            if (condition == 0)
-            {
-                continue;
-            }
-            else
-            {
-                nFind++;
-            }
-
-            icon.x = LONG(*(pf - 1));
-            icon.y = LONG(*pf);
-            if (FLAG_ON(resist, condition))
-            {
-                DrawBattleIcon(*addrBattleTexture, &icon, &target);
-            }
-            else
-            {
-                DrawBattleIcon(*addrBattleTexture, &icon, &target, TRUE);
-            }
-
-            target.x += 0x10;
-            if (nFind % 8 == 0)
-            {
-                target.x = 0;
-                target.y += 0x10;
-            }
-        }
-
-        /*AT delay*/
-        //STRdown 16,240 AGLdown 144,240
-        //STRup 0,240 AGLup 128,240
-        //dwX = 0x70;
-
-        dwY = target.y;
-
-        target.x = 0x70;
-        target.y = dwY+0x8;
-        icon.x = 16;
-        icon.y = 240+0x8;
-        if (FLAG_ON(lpBattleInf->HitFlag, CHR_FLAG_ResistATDelay))
-        //if(1)
-        {
-            DrawSimpleText(0x72, dwY, "AT");
-            g_bDisplayBattleIcoEx = true;
-            DrawBattleIcon(*addrBattleTexture, &icon, &target);
-            g_bDisplayBattleIcoEx = false;
-        }
-        else
-        {
-            DrawSimpleText(0x72, dwY, "AT", COLOR_GRAY);
-            g_bDisplayBattleIcoEx = true;
-            DrawBattleIcon(*addrBattleTexture, &icon, &target, TRUE);
-            g_bDisplayBattleIcoEx = false;
-        }
-
-#if CONSOLE_DEBUG
-        QueryPerformanceCounter(&lStopCounter);
-        PrintConsoleW(L"Elapsed time: %lf ms\n", (lStopCounter.QuadPart - lStartCounter.QuadPart) * 1000.0 / lFrequency.QuadPart);
-#endif
     }
 
     ASM void ed6DisplayStatusPatch()
@@ -833,58 +603,6 @@ L01:
         }
     }
 
-    void __cdecl ed6ChangeEnemyStatus(UINT SoldierNo, ED6_STATUS* pStatusSum, ED6_STATUS* pStatusBasic)
-    {
-        if (nDifficulty != 0 && !IsSoldierParty(SoldierNo))
-        {
-            ED6_CHARACTER_BATTLE_INF* lpBattleInf = (ED6_CHARACTER_BATTLE_INF*)addrSoldierNo0 + SoldierNo;
-
-            if (lpBattleInf->StatusSum.HPMax == lpBattleInf->StatusSum.HP)
-            {
-                SaturateConvert(&lpBattleInf->StatusSum.HPMax, (INT64)lpBattleInf->StatusSum.HPMax * statusRateUserDefined.HP / 100);
-                lpBattleInf->StatusSum.HP = lpBattleInf->StatusSum.HPMax;
-            }
-            else
-            {
-                SaturateConvert(&lpBattleInf->StatusSum.HPMax, (INT64)lpBattleInf->StatusSum.HPMax * statusRateUserDefined.HP / 100);
-                SaturateConvert(&lpBattleInf->StatusSum.HP, (INT64)lpBattleInf->StatusSum.HP * statusRateUserDefined.HP / 100);
-            }
-            SaturateConvert(&lpBattleInf->StatusSum.STR, (INT64)lpBattleInf->StatusSum.STR * statusRateUserDefined.STR / 100);
-            SaturateConvert(&lpBattleInf->StatusSum.DEF, (INT64)lpBattleInf->StatusSum.DEF * statusRateUserDefined.DEF / 100);
-            SaturateConvert(&lpBattleInf->StatusSum.ATS, (INT64)lpBattleInf->StatusSum.ATS * statusRateUserDefined.ATS / 100);
-            SaturateConvert(&lpBattleInf->StatusSum.ADF, (INT64)lpBattleInf->StatusSum.ADF * statusRateUserDefined.ADF / 100);
-            SaturateConvert(&lpBattleInf->StatusSum.SPD, (INT64)lpBattleInf->StatusSum.SPD * statusRateUserDefined.SPD / 100);
-            SaturateConvertEx(&lpBattleInf->StatusSum.DEX, (INT64)lpBattleInf->StatusSum.DEX * statusRateUserDefined.DEX / 100, (SHORT)0xCCC);
-            SaturateConvertEx(&lpBattleInf->StatusSum.AGL, (INT64)lpBattleInf->StatusSum.AGL * statusRateUserDefined.AGL / 100, (SHORT)0xCCC);
-            SaturateConvert(&lpBattleInf->StatusSum.MOV, (INT64)lpBattleInf->StatusSum.MOV * statusRateUserDefined.MOV / 100);
-            if (statusRateUserDefined.ResistAbnormalCondition)
-            {
-                lpBattleInf->Resistance |= conditionAbnormal;
-            }
-            if (statusRateUserDefined.ResistAbilityDown)
-            {
-                lpBattleInf->Resistance |= conditionDown;
-                lpBattleInf->HitFlag |= CHR_FLAG_ResistATDelay;
-            }
-        }
-    }
-
-    ASM void ed6ChangeEnemyStatusPatch()
-    {
-        __asm
-        {
-            MOV EAX,DWORD PTR SS:[ESP+0x8];
-            MOV ECX,DWORD PTR SS:[ESP+0x4];
-            MOV EDX,DWORD PTR SS:[ESP];
-            push EAX;
-            push ECX;
-            push EDX;
-            call addrChangeEnemyStatusPatch2;
-            ADD ESP,0xC;
-            call ed6ChangeEnemyStatus;
-            jmp addrChangeEnemyStatusPatch1;
-        }
-    }
     void __cdecl ed6ShowConditionAtOld(ULONG AT, float x, float y, ULONG color)
     {
         ASM_DUMMY_AUTO();
@@ -917,6 +635,10 @@ L01:
         y = (y - 16.f) + 16.f * resolution->cy / 480.f;
         ed6ShowConditionAtOld(AT, x, y, nConditionATColor);
     }
+
+    #define _ED63_NS_
+    #include "ed6_ns_common.h"
+    #undef  _ED63_NS_
 }
 
 namespace NED62
@@ -994,225 +716,6 @@ L01:
         }
     }
 
-    RESISTANCE __stdcall ed6GetResistance(ED6_CHARACTER_BATTLE_INF* lpBattleInf)
-    {
-        UINT addr;
-        RESISTANCE resist = lpBattleInf->Resistance;
-        for (int i = 3; i < 5; i++)
-        {
-            if (lpBattleInf->Equip[i] == 0)
-            {
-                continue;
-            }
-            addr = getItemInf(lpBattleInf->Equip[i]);
-
-            if (*(byte*)(addr+5) != 1)
-            {
-                continue;
-            }
-
-            __asm xor ebx,ebx;
-            switch (*(byte*)(addr+6))
-            {
-            case 1:
-                __asm or BL,0x1;
-                break;
-            case 2:
-                __asm or BL,0x2;
-                break;
-            case 3:
-                __asm or BL,0x4;
-                break;
-            case 4:
-                __asm or BL,0x8;
-                break;
-            case 5:
-                __asm or BL,0x10;
-                break;
-            case 6:
-                __asm or BL,0x20;
-                break;
-            case 7:
-                __asm or BL,0x40;
-                break;
-            case 8:
-                __asm or BL,0x80;
-                break;
-            case 9:
-                __asm or BH,0x1;
-                break;
-            case 10:
-                __asm or BH,0x2;
-                break;
-            case 11:
-                __asm or BL,0x6;
-                break;
-            case 12:
-                __asm or EBX,0x108;
-                break;
-            case 13:
-                __asm or EBX,0x3FF;
-                break;
-            case 14:
-                __asm or BL,0x2A;
-                break;
-            case 15:
-                __asm or BL,0x21;
-                break;
-            case 16:
-                __asm or BL,0x88;
-                break;
-            case 17:
-                __asm or BL,0x3;
-                break;
-            case 18:
-                __asm or BL,0x50;
-                break;
-            case 19:
-                __asm or EBX,0x204;
-                break;
-            }
-            __asm or resist,EBX
-        }
-        return resist;
-    }
-
-    VOID THISCALL CBattleInfoBox::ed6DisplayStatus(ED6_CHARACTER_BATTLE_INF* lpBattleInf)
-    {
-        if (g_bShowExtraInfo == false)
-        {
-            return;
-        }
-
-        DWORD   dwY = dwYStart;
-
-        char szBuffer[0x120];
-        static char *szStatus[] = { "Level", " STR", " DEF", " ATS", " ADF", " SPD", " DEX", " AGL", " MOV" };
-
-        /*显示分界线*/
-        SetTextSize(0);
-        DrawSimpleText(0, dwY, (PCSTR)lpcStatusLine, COLOR_LINE);
-        SetTextSize(1);
-        dwY += 0xA;
-
-        /*物品掉落概率*/
-        for (int i = 0; i < 2; ++i)
-        {
-            if (lpBattleInf->DropIndex[i] != 0 && lpBattleInf->DropIndex[i] != 0xFFFF)
-            {
-                sprintf(szBuffer, "%3d%%", lpBattleInf->DropProbability[i]);
-                DrawSimpleText(0, 0xBA + 0xE * i, szBuffer, COLOR_GRAY);
-            }
-        }
-
-        int i;
-        for (i = 0; i < countof(szStatus); i++, dwY+=0xC)
-        {
-            sprintf(szBuffer, "%s", szStatus[i]);
-            DrawSimpleText(0, dwY, szBuffer, COLOR_TITLE);
-
-            switch (i)
-            {
-            case 0:
-                sprintf(szBuffer, "%21d", lpBattleInf->StatusBasic.Level);
-                break;
-            case 1:
-                sprintf(szBuffer, "       %6d  %6d", lpBattleInf->StatusBasic.STR, lpBattleInf->StatusSum.STR);
-                break;
-            case 2:
-                sprintf(szBuffer, "       %6d  %6d", lpBattleInf->StatusBasic.DEF, lpBattleInf->StatusSum.DEF);
-                break;
-            case 3:
-                sprintf(szBuffer, "       %6d  %6d", lpBattleInf->StatusBasic.ATS, lpBattleInf->StatusSum.ATS);
-                break;
-            case 4:
-                sprintf(szBuffer, "       %6d  %6d", lpBattleInf->StatusBasic.ADF, lpBattleInf->StatusSum.ADF);
-                break;
-            case 5:
-                sprintf(szBuffer, "       %6d  %6d", lpBattleInf->StatusBasic.SPD, lpBattleInf->StatusSum.SPD);
-                break;
-            case 6:
-                sprintf(szBuffer, "       %6d  %6d", lpBattleInf->StatusBasic.DEX, lpBattleInf->StatusSum.DEX);
-                break;
-            case 7:
-                sprintf(szBuffer, "       %6d  %6d", lpBattleInf->StatusBasic.AGL, lpBattleInf->StatusSum.AGL);
-                break;
-            case 8:
-                sprintf(szBuffer, "       %6d  %6d", lpBattleInf->StatusBasic.MOV, lpBattleInf->StatusSum.MOV);
-                break;
-            }
-
-            DrawSimpleText(0, dwY, szBuffer);
-        }
-
-        /*显示抗性*/
-        POINT   target = {0, (LONG)dwY};
-        POINT   icon;
-
-        PFLOAT  pf;
-        ULONG   nFind = 0;
-        ULONG   condition;
-        RESISTANCE resist = ed6GetResistance(lpBattleInf);
-        for (i = 0, pf = (PFLOAT)addrConditionIconPointBegin; pf < (PFLOAT)addrConditionIconPointEnd; ++i, pf += 2)
-        {
-            condition = EnumCondition(i);
-
-            if (condition == 0)
-            {
-                continue;
-            }
-            else
-            {
-                nFind++;
-            }
-
-            icon.x = LONG(*(pf - 1));
-            icon.y = LONG(*pf);
-            if (FLAG_ON(resist, condition))
-            {
-                DrawBattleIcon(*addrBattleTexture, &icon, &target);
-            }
-            else
-            {
-                DrawBattleIcon(*addrBattleTexture, &icon, &target, TRUE);
-            }
-
-            target.x += 0x10;
-            if (nFind % 8 == 0)
-            {
-                target.x = 0;
-                target.y += 0x10;
-            }
-        }
-
-        /*AT delay*/
-        //STRdown 16,240 AGLdown 144,240
-        //STRup 0,240 AGLup 128,240
-        //dwX = 0x70;
-
-        dwY = target.y;
-
-        target.x = 0x70;
-        target.y = dwY+0x8;
-        icon.x = 16;
-        icon.y = 240+0x8;
-        if (FLAG_ON(lpBattleInf->HitFlag, CHR_FLAG_ResistATDelay))
-        //if(1)
-        {
-            DrawSimpleText(0x72, dwY, "AT");
-            g_bDisplayBattleIcoEx = true;
-            DrawBattleIcon(*addrBattleTexture, &icon, &target);
-            g_bDisplayBattleIcoEx = false;
-        }
-        else
-        {
-            DrawSimpleText(0x72, dwY, "AT", COLOR_GRAY);
-            g_bDisplayBattleIcoEx = true;
-            DrawBattleIcon(*addrBattleTexture, &icon, &target, TRUE);
-            g_bDisplayBattleIcoEx = false;
-        }
-    }
-
     ASM void ed6DisplayStatusPatch()
     {
         __asm
@@ -1224,59 +727,6 @@ L01:
             mov ecx, esi;
             call CBattleInfoBox::ed6DisplayStatus;
             jmp addrDisplayStatusPatch1;
-        }
-    }
-
-    void __cdecl ed6ChangeEnemyStatus(UINT SoldierNo, ED6_STATUS* pStatusSum, ED6_STATUS* pStatusBasic)
-    {
-        if (nDifficulty != 0 && !IsSoldierParty(SoldierNo))
-        {
-            ED6_CHARACTER_BATTLE_INF* lpBattleInf = (ED6_CHARACTER_BATTLE_INF*)addrSoldierNo0 + SoldierNo;
-
-            if (lpBattleInf->StatusSum.HPMax == lpBattleInf->StatusSum.HP)
-            {
-                SaturateConvert(&lpBattleInf->StatusSum.HPMax, (INT64)lpBattleInf->StatusSum.HPMax * statusRateUserDefined.HP / 100);
-                lpBattleInf->StatusSum.HP = lpBattleInf->StatusSum.HPMax;
-            }
-            else
-            {
-                SaturateConvert(&lpBattleInf->StatusSum.HPMax, (INT64)lpBattleInf->StatusSum.HPMax * statusRateUserDefined.HP / 100);
-                SaturateConvert(&lpBattleInf->StatusSum.HP, (INT64)lpBattleInf->StatusSum.HP * statusRateUserDefined.HP / 100);
-            }
-            SaturateConvert(&lpBattleInf->StatusSum.STR, (INT64)lpBattleInf->StatusSum.STR * statusRateUserDefined.STR / 100);
-            SaturateConvert(&lpBattleInf->StatusSum.DEF, (INT64)lpBattleInf->StatusSum.DEF * statusRateUserDefined.DEF / 100);
-            SaturateConvert(&lpBattleInf->StatusSum.ATS, (INT64)lpBattleInf->StatusSum.ATS * statusRateUserDefined.ATS / 100);
-            SaturateConvert(&lpBattleInf->StatusSum.ADF, (INT64)lpBattleInf->StatusSum.ADF * statusRateUserDefined.ADF / 100);
-            SaturateConvert(&lpBattleInf->StatusSum.SPD, (INT64)lpBattleInf->StatusSum.SPD * statusRateUserDefined.SPD / 100);
-            SaturateConvertEx(&lpBattleInf->StatusSum.DEX, (INT64)lpBattleInf->StatusSum.DEX * statusRateUserDefined.DEX / 100, (SHORT)0xCCC);
-            SaturateConvertEx(&lpBattleInf->StatusSum.AGL, (INT64)lpBattleInf->StatusSum.AGL * statusRateUserDefined.AGL / 100, (SHORT)0xCCC);
-            SaturateConvert(&lpBattleInf->StatusSum.MOV, (INT64)lpBattleInf->StatusSum.MOV * statusRateUserDefined.MOV / 100);
-            if (statusRateUserDefined.ResistAbnormalCondition)
-            {
-                lpBattleInf->Resistance |= conditionAbnormal;
-            }
-            if (statusRateUserDefined.ResistAbilityDown)
-            {
-                lpBattleInf->Resistance |= conditionDown;
-                lpBattleInf->HitFlag |= CHR_FLAG_ResistATDelay;
-            }
-        }
-    }
-
-    ASM void ed6ChangeEnemyStatusPatch()
-    {
-        __asm
-        {
-            MOV EAX,DWORD PTR SS:[ESP+0x8];
-            MOV ECX,DWORD PTR SS:[ESP+0x4];
-            MOV EDX,DWORD PTR SS:[ESP];
-            push EAX;
-            push ECX;
-            push EDX;
-            call addrChangeEnemyStatusPatch2;
-            ADD ESP,0xC;
-            call ed6ChangeEnemyStatus;
-            jmp addrChangeEnemyStatusPatch1;
         }
     }
 
@@ -1318,6 +768,10 @@ L01:
     {
         ed6ShowConditionAtNew(AT, x, y - 8.f * resolution->cy / 480.f, width, height, a6, a7, color);
     }
+
+    #define _ED62_NS_
+    #include "ed6_ns_common.h"
+    #undef  _ED62_NS_
 }
 
 namespace NED61
@@ -1397,200 +851,6 @@ L01:
         }
     }
 
-    RESISTANCE __stdcall ed6GetResistance(ED6_CHARACTER_BATTLE_INF* lpBattleInf)
-    {
-        UINT addr;
-        RESISTANCE resist = lpBattleInf->Resistance;
-        for (int i = 3; i < 5; i++)
-        {
-            if (lpBattleInf->Equip[i] == 0)
-            {
-                continue;
-            }
-            addr = getItemInf(lpBattleInf->Equip[i]);
-
-            if (*(byte*)(addr+5) != 1)
-            {
-                continue;
-            }
-
-            __asm xor ebx,ebx;
-            switch (*(byte*)(addr+6))
-            {
-            case 1:
-                __asm or  BL,0x1
-                break;
-            case 2:
-                __asm or  BL,0x2
-                break;
-            case 3:
-                __asm or  BL,0x4
-                break;
-            case 4:
-                __asm or  BL,0x8
-                break;
-            case 5:
-                __asm or  BL,0x10
-                break;
-            case 6:
-                __asm or  BL,0x20
-                break;
-            case 7:
-                __asm or  BL,0x40
-                break;
-            case 8:
-                __asm or  BL,0x80
-                break;
-            case 9:
-                __asm or  BH,0x1
-                break;
-            case 10:
-                __asm or  BH,0x2
-                break;
-            case 11:
-                __asm or  BL,0x6
-                break;
-            case 12:
-                __asm or  EBX,0x108
-                break;
-            case 13:
-                __asm or  EBX,0x3FF
-                break;
-            }
-            __asm or resist,EBX
-        }
-        return resist;
-    }
-
-    VOID THISCALL CBattleInfoBox::ed6DisplayStatus(ED6_CHARACTER_BATTLE_INF* lpBattleInf)
-    {
-        if (g_bShowExtraInfo == false)
-        {
-            return;
-        }
-
-        DWORD   dwY = dwYStart;
-
-        char szBuffer[0x120];
-        static char *szStatus[] = { "Level", " STR", " DEF", " ATS", " ADF", " SPD", " DEX", " AGL", " MOV" };
-
-        /*显示分界线*/
-        SetTextSize(0);
-        DrawSimpleText(0, dwY, (PCSTR)lpcStatusLine, COLOR_LINE);
-        SetTextSize(1);
-        dwY += 0xA;
-
-        /*物品掉落概率*/
-        for (int i = 0; i < 2; ++i)
-        {
-            if (lpBattleInf->DropIndex[i] != 0 && lpBattleInf->DropIndex[i] != 0xFFFF)
-            {
-                sprintf(szBuffer, "%3d%%", lpBattleInf->DropProbability[i]);
-                DrawSimpleText(0, 0xBA + 0xE * i, szBuffer, COLOR_GRAY);
-            }
-        }
-
-        int i;
-        for (i = 0; i < countof(szStatus); i++, dwY+=0xC)
-        {
-            sprintf(szBuffer, "%s", szStatus[i]);
-            DrawSimpleText(0, dwY, szBuffer, COLOR_TITLE);
-
-            switch (i)
-            {
-            case 0:
-                sprintf(szBuffer, "%21d", lpBattleInf->StatusBasic.Level);
-                break;
-            case 1:
-                sprintf(szBuffer, "       %6d  %6d", lpBattleInf->StatusBasic.STR, lpBattleInf->StatusSum.STR);
-                break;
-            case 2:
-                sprintf(szBuffer, "       %6d  %6d", lpBattleInf->StatusBasic.DEF, lpBattleInf->StatusSum.DEF);
-                break;
-            case 3:
-                sprintf(szBuffer, "       %6d  %6d", lpBattleInf->StatusBasic.ATS, lpBattleInf->StatusSum.ATS);
-                break;
-            case 4:
-                sprintf(szBuffer, "       %6d  %6d", lpBattleInf->StatusBasic.ADF, lpBattleInf->StatusSum.ADF);
-                break;
-            case 5:
-                sprintf(szBuffer, "       %6d  %6d", lpBattleInf->StatusBasic.SPD, lpBattleInf->StatusSum.SPD);
-                break;
-            case 6:
-                sprintf(szBuffer, "       %6d  %6d", lpBattleInf->StatusBasic.DEX, lpBattleInf->StatusSum.DEX);
-                break;
-            case 7:
-                sprintf(szBuffer, "       %6d  %6d", lpBattleInf->StatusBasic.AGL, lpBattleInf->StatusSum.AGL);
-                break;
-            case 8:
-                sprintf(szBuffer, "       %6d  %6d", lpBattleInf->StatusBasic.MOV, lpBattleInf->StatusSum.MOV);
-                break;
-            }
-
-            DrawSimpleText(0, dwY, szBuffer);
-        }
-
-        /*显示抗性*/
-        POINT   target = {0, (LONG)dwY};
-        POINT   icon;
-
-        PFLOAT  pf;
-        ULONG   nFind = 0;
-        ULONG   condition;
-        RESISTANCE resist = ed6GetResistance(lpBattleInf);
-        for (i = 0, pf = (PFLOAT)addrConditionIconPointBegin; pf < (PFLOAT)addrConditionIconPointEnd; ++i, pf += 2)
-        {
-            condition = EnumCondition(i);
-
-            if (condition == 0)
-            {
-                continue;
-            }
-            else
-            {
-                nFind++;
-            }
-
-            if (FLAG_ON(resist, condition))
-            {
-                icon.x = LONG(*(pf - 1));
-                icon.y = LONG(*pf);
-                DrawBattleIcon(*addrBattleTexture, &icon, &target);
-            }
-            else
-            {
-                //DrawBattleIcon(*addrBattleTexture, &icon, &target, TRUE);
-            }
-
-            target.x += 0x10;
-            if (nFind % 8 == 0)
-            {
-                target.x = 0;
-                target.y += 0x10;
-            }
-        }
-
-        /*AT delay*/
-        //STRdown 16,240 AGLdown 144,240
-        //STRup 0,240 AGLup 128,240
-        //dwX = 0x70;
-
-        dwY = target.y;
-
-        target.x = 0x70;
-        target.y = dwY+0x8;
-        icon.x = 16;
-        icon.y = 240+0x8;
-        if (FLAG_ON(lpBattleInf->HitFlag, CHR_FLAG_ResistATDelay))
-        //if(1)
-        {
-            DrawSimpleText(0x72, dwY, "AT");
-            g_bDisplayBattleIcoEx = true;
-            DrawBattleIcon(*addrBattleTexture, &icon, &target);
-            g_bDisplayBattleIcoEx = false;
-        }
-    }
-
     ASM void ed6DisplayStatusPatch()
     {
         __asm
@@ -1602,59 +862,6 @@ L01:
             mov ecx, esi;
             call CBattleInfoBox::ed6DisplayStatus;
             jmp addrDisplayStatusPatch1;
-        }
-    }
-
-    void __cdecl ed6ChangeEnemyStatus(UINT SoldierNo, ED6_STATUS* pStatusSum, ED6_STATUS* pStatusBasic)
-    {
-        if (nDifficulty != 0 && !IsSoldierParty(SoldierNo))
-        {
-            ED6_CHARACTER_BATTLE_INF* lpBattleInf = (ED6_CHARACTER_BATTLE_INF*)addrSoldierNo0 + SoldierNo;
-
-            if (lpBattleInf->StatusSum.HPMax == lpBattleInf->StatusSum.HP)
-            {
-                SaturateConvert(&lpBattleInf->StatusSum.HPMax, (INT64)lpBattleInf->StatusSum.HPMax * statusRateUserDefined.HP / 100);
-                lpBattleInf->StatusSum.HP = lpBattleInf->StatusSum.HPMax;
-            }
-            else
-            {
-                SaturateConvert(&lpBattleInf->StatusSum.HPMax, (INT64)lpBattleInf->StatusSum.HPMax * statusRateUserDefined.HP / 100);
-                SaturateConvert(&lpBattleInf->StatusSum.HP, (INT64)lpBattleInf->StatusSum.HP * statusRateUserDefined.HP / 100);
-            }
-            SaturateConvert(&lpBattleInf->StatusSum.STR, (INT64)lpBattleInf->StatusSum.STR * statusRateUserDefined.STR / 100);
-            SaturateConvert(&lpBattleInf->StatusSum.DEF, (INT64)lpBattleInf->StatusSum.DEF * statusRateUserDefined.DEF / 100);
-            SaturateConvert(&lpBattleInf->StatusSum.ATS, (INT64)lpBattleInf->StatusSum.ATS * statusRateUserDefined.ATS / 100);
-            SaturateConvert(&lpBattleInf->StatusSum.ADF, (INT64)lpBattleInf->StatusSum.ADF * statusRateUserDefined.ADF / 100);
-            SaturateConvert(&lpBattleInf->StatusSum.SPD, (INT64)lpBattleInf->StatusSum.SPD * statusRateUserDefined.SPD / 100);
-            SaturateConvertEx(&lpBattleInf->StatusSum.DEX, (INT64)lpBattleInf->StatusSum.DEX * statusRateUserDefined.DEX / 100, (SHORT)0xCCC);
-            SaturateConvertEx(&lpBattleInf->StatusSum.AGL, (INT64)lpBattleInf->StatusSum.AGL * statusRateUserDefined.AGL / 100, (SHORT)0xCCC);
-            SaturateConvert(&lpBattleInf->StatusSum.MOV, (INT64)lpBattleInf->StatusSum.MOV * statusRateUserDefined.MOV / 100);
-            if (statusRateUserDefined.ResistAbnormalCondition)
-            {
-                lpBattleInf->Resistance |= conditionAbnormal;
-            }
-            if (statusRateUserDefined.ResistAbilityDown)
-            {
-                lpBattleInf->Resistance |= conditionDown;
-                lpBattleInf->HitFlag |= CHR_FLAG_ResistATDelay;
-            }
-        }
-    }
-
-    ASM void ed6ChangeEnemyStatusPatch()
-    {
-        __asm
-        {
-            MOV EAX,DWORD PTR SS:[ESP+0x8];
-            MOV ECX,DWORD PTR SS:[ESP+0x4];
-            MOV EDX,DWORD PTR SS:[ESP];
-            push EAX;
-            push ECX;
-            push EDX;
-            call addrChangeEnemyStatusPatch2;
-            ADD ESP,0xC;
-            call ed6ChangeEnemyStatus;
-            jmp addrChangeEnemyStatusPatch1;
         }
     }
 
@@ -1686,6 +893,10 @@ L01:
         y = (y - 16.f) + 16.f * resolution->cy / 480.f;
         ed6ShowConditionAtOld(AT, x, y, width, height, a6, a7, nConditionATColor);
     }
+
+    #define _ED61_NS_
+    #include "ed6_ns_common.h"
+    #undef  _ED61_NS_
 }
 
 enum GameVersion
@@ -1812,7 +1023,6 @@ void ConfigInit()
 void patch_ed63cn7(PVOID hModule)
 {
     using namespace NED63;
-    if (nSepithUpLimit == 0) nSepithUpLimit = 300;
 
     if (*(unsigned char*)addrChangeEnemyStatusPatch0 != 0xE8)   return; //0xE8 call 0xE9 jump; 防止重复补丁
 
@@ -1890,7 +1100,6 @@ void patch_ed63cn7(PVOID hModule)
 void patch_ed63jp7(PVOID hModule)
 {
     using namespace NED63;
-    if (nSepithUpLimit == 0) nSepithUpLimit = 300;
 
     NED63::sprintf              = (pSprintf)0x0058C7AF;
     getItemInf                  = (pGetAddr)0x0049F750;
@@ -2002,7 +1211,6 @@ void patch_ed63jp7(PVOID hModule)
 void patch_ed63jp1002(PVOID hModule)
 {
     using namespace NED63;
-    if (nSepithUpLimit == 0) nSepithUpLimit = 300;
 
     NED63::sprintf              = (pSprintf)0x0058BEEF;
     getItemInf                  = (pGetAddr)0x0049F520;
@@ -2084,6 +1292,12 @@ void patch_ed63jp1002(PVOID hModule)
 
     }
 
+    //if (*(PUCHAR)0x004035E9 == 0xE9) // 3rd The Other Side
+    if (*(PUCHAR)0x0041C398 == 0x75)
+    {
+        nShowConditionAT |= 1;
+    }
+
     if ((nShowConditionAT == SHOW_CONDITION_AT_HIDE99 || nShowConditionAT == SHOW_CONDITION_AT_MAX99) && resolution->cx >= 800)  // 状态AT 调整到一行
     {
         MEMORY_PATCH p[] =
@@ -2100,6 +1314,7 @@ void patch_ed63jp1002(PVOID hModule)
         PATCH_MEMORY(p00528A34, 5, 0x128A34),   // 仿p恢复 display + 0xF8
         PATCH_MEMORY(0x00,      1, 0x04A3C5),   // 仿p恢复 Exp -6
         //PATCH_MEMORY(p0043CA3F,   6, 0x03CA3F),   // AT 显示减少
+        PATCH_MEMORY(0x74,      1, 0x0041C398 -0x00400000), // The Other Side 恢复
 
         PATCH_MEMORY(0x643525,  4, 0x1B186C),   // Exp %4d->%5d
         PATCH_MEMORY(0xD4,      1, 0x04A2F7),   // CP %3d->%6d, use HP's
@@ -2112,6 +1327,9 @@ void patch_ed63jp1002(PVOID hModule)
         PATCH_MEMORY(0x00,      1, 0x0061CE),   // up board
         PATCH_MEMORY(nSepithUpLimit,    4, 0x00408EA7 -0x00400000),
         PATCH_MEMORY(nSepithUpLimit,    4, 0x00406FA8 -0x00400000),
+        PATCH_MEMORY(0x59D3F0,  4, 0x0041C3C2 -0x00400000), // 状态AT调整恢复
+        PATCH_MEMORY(0x59D3F0,  4, 0x0041C3CF -0x00400000), // 状态AT调整恢复
+        PATCH_MEMORY(0x25D8,    2, 0x0041C3CD -0x00400000), // 状态AT调整恢复 FSUB
         PATCH_MEMORY((ULONG_PTR)&nShowConditionAT,  4, 0x0041C393 -0x00400000), // 是否显状态AT
     };
 
@@ -2134,7 +1352,6 @@ void patch_ed63jp1002(PVOID hModule)
 void patch_ed62cn7(PVOID hModule)
 {
     using namespace NED62;
-    if (nSepithUpLimit == 0) nSepithUpLimit = 70;
 
     if (*(unsigned char*)addrChangeEnemyStatusPatch0 != 0xE8)   return; //0xE8 call 0xE9 jump; 防止重复补丁
 
@@ -2204,7 +1421,6 @@ void patch_ed62cn7(PVOID hModule)
 void patch_ed62jp7(PVOID hModule)
 {
     using namespace NED62;
-    if (nSepithUpLimit == 0) nSepithUpLimit = 70;
 
     NED62::sprintf              = (pSprintf)0x005389AF;
     getItemInf                  = (pGetAddr)0x004C5EF0;
@@ -2296,7 +1512,6 @@ void patch_ed62jp7(PVOID hModule)
 void patch_ed62jp1020(PVOID hModule)
 {
     using namespace NED62;
-    if (nSepithUpLimit == 0) nSepithUpLimit = 70;
 
     NED62::sprintf              = (pSprintf)0x00537EEF;
     getItemInf                  = (pGetAddr)0x004C59F0;
@@ -2417,6 +1632,8 @@ void patch_ed62jp1020(PVOID hModule)
         PATCH_MEMORY(0x30,      1, 0x040C66),   // height
         PATCH_MEMORY(0x00,      1, 0x005F96),   // up board
         PATCH_MEMORY(nSepithUpLimit,    4, 0x00408A97 -0x00400000),
+        PATCH_MEMORY(0x549330,  4, 0x00419846 -0x00400000), // 状态AT调整恢复
+        PATCH_MEMORY(0x549330,  4, 0x00419853 -0x00400000), // 状态AT调整恢复
         PATCH_MEMORY((ULONG_PTR)&nShowConditionAT,  4, 0x00419809 -0x00400000), // 是否显状态AT
 
         //PATCH_MEMORY(p004339F9,   6, 0x0339F9),   // AT 显示减少
@@ -2443,7 +1660,6 @@ void patch_ed62jp1020(PVOID hModule)
 void patch_ed61cn7(PVOID hModule)
 {
     using namespace NED61;
-    if (nSepithUpLimit == 0) nSepithUpLimit = 70;
 
     if (*(unsigned char*)addrChangeEnemyStatusPatch0 != 0xE8)   return; //0xE8 call 0xE9 jump; 防止重复补丁
 
@@ -2514,7 +1730,6 @@ void patch_ed61cn7(PVOID hModule)
 void patch_ed61jp7(PVOID hModule)
 {
     using namespace NED61;
-    if (nSepithUpLimit == 0) nSepithUpLimit = 70;
 
     NED61::sprintf              = (pSprintf)0x004FBA2F;
     getItemInf                  = (pGetAddr)0x004A84A0;
@@ -2659,6 +1874,35 @@ void Init()
 #endif
 
 #endif //折叠
+
+    if (FLAG_ON(gameVersion, ed63min))
+    {
+        using namespace NED63;
+        if (nSepithUpLimit == 0)
+        {
+            nSepithUpLimit = SEPITH_UP_LIMIT_ORIGINAL;
+        }
+    }
+    else if (FLAG_ON(gameVersion, ed62min))
+    {
+        using namespace NED62;
+        if (nSepithUpLimit == 0)
+        {
+            nSepithUpLimit = SEPITH_UP_LIMIT_ORIGINAL;
+        }
+    }
+    else if (FLAG_ON(gameVersion, ed61min))
+    {
+        using namespace NED61;
+        if (nSepithUpLimit == 0)
+        {
+            nSepithUpLimit = SEPITH_UP_LIMIT_ORIGINAL;
+        }
+    }
+    else
+    {
+        return;
+    }
 
     switch (gameVersion)
     {

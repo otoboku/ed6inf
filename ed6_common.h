@@ -93,6 +93,7 @@ namespace NED61
 
     RESISTANCE conditionAbnormal = 0xBFF;
     RESISTANCE conditionDown = 0x2AA0400;
+    CONST ULONG SEPITH_UP_LIMIT_ORIGINAL = 70;
 
     bool IsSoldierParty(UINT SoldierNo)
     {
@@ -137,6 +138,7 @@ namespace NED62
 
     RESISTANCE conditionAbnormal = 0x28000BFF;
     RESISTANCE conditionDown = 0x2AA8400;
+    CONST ULONG SEPITH_UP_LIMIT_ORIGINAL = 70;
 
     bool IsSoldierParty(UINT SoldierNo)
     {
@@ -156,6 +158,7 @@ namespace NED63
 
     RESISTANCE conditionAbnormal = 0x28000BFF;
     RESISTANCE conditionDown = 0x2AA8400;
+    CONST ULONG SEPITH_UP_LIMIT_ORIGINAL = 300;
 
     bool IsSoldierParty(UINT SoldierNo)
     {
