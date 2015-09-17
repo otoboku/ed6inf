@@ -4,14 +4,15 @@
 #include "ed6inf_data.h"
 #include "misc_aki.h"
 
-bool  g_bShowExtraInfo = true;
-bool  g_bDisplayBattleIcoEx = false;
+BOOL  g_bShowExtraInfo = TRUE;
+BOOL  g_bDisplayBattleIcoEx = FALSE;
 int   g_bShowInfoPage2 = 0;
 
 #if CONSOLE_DEBUG
 LARGE_INTEGER lFrequency, lStopCounter, lStartCounter;
 #endif
 
+#define METHOD_PTR(_method) PtrAdd((PVOID)NULL, _method)
 #define INIT_STATIC_MEMBER(x) DECL_SELECTANY TYPE_OF(x) x = nullptr
 #define DECL_STATIC_METHOD_POINTER(cls, method) static TYPE_OF(&cls::method) Stub##method
 #define DETOUR_METHOD(cls, method, addr, ...) TYPE_OF(&cls::method) (method); *(PULONG_PTR)&(method) = addr; return (this->*method)(__VA_ARGS__)
@@ -21,13 +22,10 @@ LARGE_INTEGER lFrequency, lStopCounter, lStartCounter;
 
 typedef int (__cdecl *pSprintf)(char *_Dest, const char* _Format, ...);
 typedef ULONG (__cdecl *pGetAddr)(ULONG);
+typedef void (*pHandleKeyUp)(USHORT key);
 
-__declspec(align(4))
-typedef struct
-{
-    int a;
-    int b;
-} structAB;
+pHandleKeyUp lpfnHandleKeyUp = [] (USHORT key) {};
+WNDPROC WindowProc;
 
 POINT   battleIcoRec = {16, 8};
 
@@ -90,116 +88,28 @@ enum :UINT
     CONDITION_AT_COLOR_GREEN    = 0xFF00FF00,
 };
 
-BOOL WINAPI PeekMessageAOld(LPMSG lpMsg, HWND hWnd, UINT wMsgFilterMin, UINT wMsgFilterMax, UINT wRemoveMsg)
+LRESULT NTAPI MainWndProc(HWND Window, UINT Message, WPARAM wParam, LPARAM lParam)
 {
-    ASM_DUMMY_AUTO();
+    switch (Message)
+    {
+        case WM_KEYUP:
+            switch (LOWORD(wParam))
+            {
+                case VK_NEXT:
+                case VK_F2:
+                    lpfnHandleKeyUp(LOWORD(wParam));
+                    break;
+            }
+            break;
+    }
+
+    return WindowProc(Window, Message, wParam, lParam);
 }
 
-DWORD dwCount = 4;
-
-BOOL WINAPI PeekMessageANew(LPMSG lpMsg, HWND hWnd, UINT wMsgFilterMin, UINT wMsgFilterMax, UINT wRemoveMsg)
+VOID ChangeMainWindowProc(HWND GameWindow)
 {
-    BOOL bResult = PeekMessageAOld(lpMsg, hWnd, wMsgFilterMin, wMsgFilterMax, wRemoveMsg);
-    if (_ReturnAddress() > (void*)0x600000 || _ReturnAddress() < (void*)0x400000)
-    {
-        return bResult;
-    }
-
-    if (bResult == False)
-    {
-//      SleepEx(1, FALSE);
-
-        DWORD dwTickCount;
-        static DWORD dwLastTickCount;
-
-        dwTickCount = GetTickCount();
-        if (dwTickCount - dwLastTickCount < 10 && --dwCount == 0)
-        {
-            dwCount = 4;
-            SleepEx(1, FALSE);
-        }
-        dwLastTickCount = dwTickCount;
-
-    }
-    else if (lpMsg->message == WM_KEYDOWN)
-    {
-/*
-        switch (lpMsg->wParam)
-        {
-            case VK_F1:
-                ChangeFont();
-                break;
-
-            case VK_F2:
-                g_bShowExtraInfo = True;
-                break;
-
-            case VK_F3:
-                g_bShowExtraInfo = False;
-                break;
-        }
-*/
-    }
-
-    return bResult;
-}
-
-HMODULE
-WINAPI
-GetModuleHandleAOld(
-    LPCSTR lpModuleName
-    )
-{
-    ASM_DUMMY_AUTO();
-}
-
-HMODULE
-WINAPI
-GetModuleHandleWOld(
-    LPCWSTR lpModuleName
-    )
-{
-    ASM_DUMMY_AUTO();
-}
-
-HMODULE
-WINAPI
-GetModuleHandleANew(
-    LPCSTR lpModuleName
-    )
-{
-    if (lpModuleName == NULL)
-    {
-        return GetModuleHandleAOld(lpModuleName);
-    }
-    if(*(lpModuleName+1) == '3' && *(lpModuleName+3) == '8')
-    {
-        if (_stricmp(lpModuleName, "d3d8.dll") == 0 || _stricmp(lpModuleName, "d3d8") == 0)
-        {
-            return GetModuleHandleAOld("system32\\d3d8.dll");
-        }
-    }
-    return GetModuleHandleAOld(lpModuleName);
-}
-
-HMODULE
-WINAPI
-GetModuleHandleWNew(
-    LPCWSTR lpModuleName
-    )
-{
-    if (lpModuleName == NULL)
-    {
-        return GetModuleHandleWOld(lpModuleName);
-    }
-    if(*(lpModuleName+1) == L'3' && *(lpModuleName+3) == L'8')
-    {
-        if (_wcsicmp(lpModuleName, L"d3d8.dll") == 0 || _wcsicmp(lpModuleName, L"d3d8") == 0)
-        {
-            return GetModuleHandleWOld(L"system32\\d3d8.dll");
-        }
-    }
-    return GetModuleHandleWOld(lpModuleName);
+    if (GameWindow != nullptr)
+        WindowProc = (WNDPROC)SetWindowLongPtrA(GameWindow, GWL_WNDPROC, (LONG_PTR)MainWndProc);
 }
 
 namespace NED63
@@ -251,32 +161,12 @@ namespace NED63
     ULONG_PTR   addrChangeEnemyStatusPatch2 = 0x004A4360; // call
 
     PSIZE       resolution                  = (PSIZE)0x005BDFF0; // 分辨率
+    
+    ULONG_PTR   battleInfoBox               = 0;
 
-    class CBattleInfoBox
-    {
-        VOID SetTextSize(ULONG size_index)
-        {
-            DETOUR_METHOD(CBattleInfoBox, SetTextSize, lpfnSetTextSize, size_index);
-        }
-
-        VOID DrawSimpleText(LONG x, LONG y, PCSTR text, ULONG color_index = COLOR_WHITE, LONG weight = FW_NORMAL)
-        {
-            DETOUR_METHOD(CBattleInfoBox, DrawSimpleText, lpfnDrawSimpleText, x, y, text, color_index, weight);
-        }
-
-        VOID DrawBattleIcon(ULONG_PTR pTexture, PPOINT icon, PPOINT target, BOOL dark = FALSE)
-        {
-            DETOUR_METHOD(CBattleInfoBox, DrawBattleIcon, lpfnDrawBattleIcon, pTexture, icon, target, dark);
-        }
-
-        VOID ed6DisplayStatus(ED6_CHARACTER_BATTLE_INF* lpBattleInf);
-        VOID ed6DisplayItemDrop(ED6_CHARACTER_BATTLE_INF* lpBattleInf);
-    };
-
-    FORCEINLINE ULONG CDECL EnumCondition(ULONG index)
-    {
-        DETOUR_FUNCTION(EnumCondition, lpfnEnumCondition, index);
-    }
+    #define _ED63_NS_
+    #include "ed6_ns_common.h"
+    #undef  _ED63_NS_
 
     ASM void ed6DisplaySkipCondition()
     {
@@ -352,10 +242,6 @@ L01:
 
     VOID THISCALL CBattleInfoBox::ed6DisplayItemDrop(ED6_CHARACTER_BATTLE_INF* lpBattleInf)
     {
-        if (g_bShowExtraInfo == false)
-        {
-            return;
-        }
 
 #if 0
         {
@@ -511,6 +397,25 @@ L01:
 
     }
 
+    VOID THISCALL CBattleInfoBox::DrawMonsterInfo()
+    {
+        static int previous;
+        PBYTE pFlag = (PBYTE)PtrAdd(this, 0x60B5);  // re draw?
+
+        if ((*pFlag & 1) || (g_bShowExtraInfo == FALSE) || (*(PULONG)PtrAdd(this, 0x60B0) == 0))
+        {
+            g_bShowInfoPage2 = 0;
+            previous = 0;
+        }
+        else if (previous != g_bShowInfoPage2)
+        {
+            *pFlag |= 1;
+            previous = g_bShowInfoPage2;
+        }
+
+        (this->*StubDrawMonsterInfo)();
+    }
+
     ASM void ed6DisplayGetParOld()
     {
         ASM_DUMMY_AUTO();
@@ -533,10 +438,10 @@ L01:
             cmp ax, 0x41;
             je L01;
 L02:
-            mov g_bShowInfoPage2,0;
+            ; mov g_bShowInfoPage2, 0;
             jmp ed6DisplayGetParOld;
 L01:
-            mov g_bShowInfoPage2,1;
+            ; mov g_bShowInfoPage2, 1;
             jmp ed6DisplayGetParOld;
         }
     }
@@ -598,7 +503,7 @@ L01:
             push ebx;
             mov ecx, esi;
             call CBattleInfoBox::ed6DisplayItemDrop;
-            mov g_bShowInfoPage2,0;
+            ; mov g_bShowInfoPage2, 0;
             jmp addrDisplayStatusPatch1;
         }
     }
@@ -636,9 +541,18 @@ L01:
         ed6ShowConditionAtOld(AT, x, y, nConditionATColor);
     }
 
-    #define _ED63_NS_
-    #include "ed6_ns_common.h"
-    #undef  _ED63_NS_
+    VOID HandleKeyUp(USHORT key)
+    {
+        switch (key)
+        {
+            case VK_NEXT:
+                g_bShowInfoPage2 ^= TRUE;
+                break;
+            case VK_F2:
+                g_bShowExtraInfo ^= TRUE;
+                break;
+        }
+    }
 }
 
 namespace NED62
@@ -678,30 +592,9 @@ namespace NED62
 
     PSIZE       resolution                  = (PSIZE)0x005643F8; // 分辨率
 
-    class CBattleInfoBox
-    {
-        VOID SetTextSize(ULONG size_index)
-        {
-            DETOUR_METHOD(CBattleInfoBox, SetTextSize, lpfnSetTextSize, size_index);
-        }
-
-        VOID DrawSimpleText(LONG x, LONG y, PCSTR text, ULONG color_index = COLOR_WHITE, LONG weight = FW_NORMAL)
-        {
-            DETOUR_METHOD(CBattleInfoBox, DrawSimpleText, lpfnDrawSimpleText, x, y, text, color_index, weight);
-        }
-
-        VOID DrawBattleIcon(ULONG_PTR pTexture, PPOINT icon, PPOINT target, BOOL dark = FALSE)
-        {
-            DETOUR_METHOD(CBattleInfoBox, DrawBattleIcon, lpfnDrawBattleIcon, pTexture, icon, target, dark);
-        }
-
-        VOID ed6DisplayStatus(ED6_CHARACTER_BATTLE_INF* lpBattleInf);
-    };
-
-    FORCEINLINE ULONG CDECL EnumCondition(ULONG index)
-    {
-        DETOUR_FUNCTION(EnumCondition, lpfnEnumCondition, index);
-    }
+    #define _ED62_NS_
+    #include "ed6_ns_common.h"
+    #undef  _ED62_NS_
 
     ASM void ed6DisplaySkipCondition()
     {
@@ -769,9 +662,6 @@ L01:
         ed6ShowConditionAtNew(AT, x, y - 8.f * resolution->cy / 480.f, width, height, a6, a7, color);
     }
 
-    #define _ED62_NS_
-    #include "ed6_ns_common.h"
-    #undef  _ED62_NS_
 }
 
 namespace NED61
@@ -811,30 +701,9 @@ namespace NED61
 
     PSIZE       resolution                  = (PSIZE)0x005204DC; // 分辨率
 
-    class CBattleInfoBox
-    {
-        VOID SetTextSize(ULONG size_index)
-        {
-            DETOUR_METHOD(CBattleInfoBox, SetTextSize, lpfnSetTextSize, size_index);
-        }
-
-        VOID DrawSimpleText(LONG x, LONG y, PCSTR text, ULONG color_index = COLOR_WHITE, LONG weight = FW_NORMAL)
-        {
-            DETOUR_METHOD(CBattleInfoBox, DrawSimpleText, lpfnDrawSimpleText, x, y, text, color_index, weight);
-        }
-
-        VOID DrawBattleIcon(ULONG_PTR pTexture, PPOINT icon, PPOINT target)
-        {
-            DETOUR_METHOD(CBattleInfoBox, DrawBattleIcon, lpfnDrawBattleIcon, pTexture, icon, target);
-        }
-
-        VOID ed6DisplayStatus(ED6_CHARACTER_BATTLE_INF* lpBattleInf);
-    };
-
-    FORCEINLINE ULONG CDECL EnumCondition(ULONG index)
-    {
-        DETOUR_FUNCTION(EnumCondition, lpfnEnumCondition, index);
-    }
+    #define _ED61_NS_
+    #include "ed6_ns_common.h"
+    #undef  _ED61_NS_
 
     ASM void ed6DisplaySkipCondition()
     {
@@ -894,9 +763,6 @@ L01:
         ed6ShowConditionAtOld(AT, x, y, width, height, a6, a7, nConditionATColor);
     }
 
-    #define _ED61_NS_
-    #include "ed6_ns_common.h"
-    #undef  _ED61_NS_
 }
 
 enum GameVersion
@@ -1088,13 +954,17 @@ void patch_ed63cn7(PVOID hModule)
         PATCH_FUNCTION(CALL, NOT_RVA, addrDisplayBattleIcoEx0,      NED63::ed6DisplayBattleIcoEx, 1),
         PATCH_FUNCTION(JUMP, NOT_RVA, addrDisplayStatusPatch0,      ed6DisplayStatusPatch, 0),
         PATCH_FUNCTION(JUMP, NOT_RVA, addrDisplayItemDropPatch0,    ed6DisplayItemDropPatch, 0),
-        PATCH_FUNCTION(JUMP, NOT_RVA, addrDisplayGetPar0,           ed6DisplayGetPar, 0, ed6DisplayGetParOld),
+        //PATCH_FUNCTION(JUMP, NOT_RVA, addrDisplayGetPar0,           ed6DisplayGetPar, 0, ed6DisplayGetParOld),
         PATCH_FUNCTION(JUMP, NOT_RVA, addrChangeEnemyStatusPatch0,  ed6ChangeEnemyStatusPatch, 0),
         PATCH_FUNCTION(CALL, NOT_RVA, 0x00446DDF,   ed6DisplayBattleSepith, 0),
         PATCH_FUNCTION(JUMP, NOT_RVA, 0x0048D310,   ed6ShowConditionAtNew, 5, ed6ShowConditionAtOld),
-        //  INLINE_HOOK(Nt_GetProcAddress(Nt_GetModuleHandle(L"kernel32.dll"), "OutputDebugStringA"), PrintDebugStringA, NULL),
+
+        INLINE_HOOK_JUMP(0x0044A5E0,    METHOD_PTR(&CBattleInfoBox::DrawMonsterInfo),   CBattleInfoBox::StubDrawMonsterInfo),
     };
     Nt_PatchMemory(p, countof(p), f, countof(f), hModule);
+
+    ChangeMainWindowProc(*(HWND*)0x2DED7AC);
+    lpfnHandleKeyUp = HandleKeyUp;
 }
 
 void patch_ed63jp7(PVOID hModule)
@@ -1198,14 +1068,18 @@ void patch_ed63jp7(PVOID hModule)
         PATCH_FUNCTION(CALL, NOT_RVA, addrDisplayBattleIcoEx0,      NED63::ed6DisplayBattleIcoEx, 1),
         PATCH_FUNCTION(JUMP, NOT_RVA, addrDisplayStatusPatch0,      ed6DisplayStatusPatch, 0),
         PATCH_FUNCTION(JUMP, NOT_RVA, addrDisplayItemDropPatch0,    ed6DisplayItemDropPatch, 0),
-        PATCH_FUNCTION(JUMP, NOT_RVA, addrDisplayGetPar0,           ed6DisplayGetPar, 0, ed6DisplayGetParOld),
+        //PATCH_FUNCTION(JUMP, NOT_RVA, addrDisplayGetPar0,           ed6DisplayGetPar, 0, ed6DisplayGetParOld),
         PATCH_FUNCTION(JUMP, NOT_RVA, addrDisplayResetWidth0,       ed6DisplayResetWidth, 0, ed6DisplayResetWidthOld), // jp ver only
         PATCH_FUNCTION(JUMP, NOT_RVA, addrChangeEnemyStatusPatch0,  ed6ChangeEnemyStatusPatch, 0),
         PATCH_FUNCTION(CALL, NOT_RVA, 0x0044677F,   ed6DisplayBattleSepith, 0),
         PATCH_FUNCTION(JUMP, NOT_RVA, 0x0048C710,   ed6ShowConditionAtNew, 5, ed6ShowConditionAtOld),
-        //  INLINE_HOOK(Nt_GetProcAddress(Nt_GetModuleHandle(L"kernel32.dll"), "OutputDebugStringA"), PrintDebugStringA, NULL),
+
+        INLINE_HOOK_JUMP(0x00449FA0,    METHOD_PTR(&CBattleInfoBox::DrawMonsterInfo),   CBattleInfoBox::StubDrawMonsterInfo),
     };
     Nt_PatchMemory(p, countof(p), f, countof(f), hModule);
+
+    ChangeMainWindowProc(*(HWND*)0x2DEAD68);
+    lpfnHandleKeyUp = HandleKeyUp;
 }
 
 void patch_ed63jp1002(PVOID hModule)
@@ -1339,14 +1213,18 @@ void patch_ed63jp1002(PVOID hModule)
         PATCH_FUNCTION(CALL, NOT_RVA, addrDisplayBattleIcoEx0,      NED63::ed6DisplayBattleIcoEx, 1),
         PATCH_FUNCTION(JUMP, NOT_RVA, addrDisplayStatusPatch0,      ed6DisplayStatusPatch, 0),
         PATCH_FUNCTION(JUMP, NOT_RVA, addrDisplayItemDropPatch0,    ed6DisplayItemDropPatch, 0),
-        PATCH_FUNCTION(JUMP, NOT_RVA, addrDisplayGetPar0,           ed6DisplayGetPar, 0, ed6DisplayGetParOld),
+        //PATCH_FUNCTION(JUMP, NOT_RVA, addrDisplayGetPar0,           ed6DisplayGetPar, 0, ed6DisplayGetParOld),
         PATCH_FUNCTION(JUMP, NOT_RVA, addrChangeEnemyStatusPatch0,  ed6ChangeEnemyStatusPatch, 0),
         PATCH_FUNCTION(CALL, NOT_RVA, 0x0044677F,   ed6DisplayBattleSepith, 0),
         PATCH_FUNCTION(JUMP, NOT_RVA, 0x0048C4B0,   ed6ShowConditionAtNew, 5, ed6ShowConditionAtOld),
         //PATCH_FUNCTION(JUMP, NOT_RVA, addrDisplayResetWidth0,     ed6DisplayResetWidth, 0, ed6DisplayResetWidthOld), // jp ver only
-        //  INLINE_HOOK(Nt_GetProcAddress(Nt_GetModuleHandle(L"kernel32.dll"), "OutputDebugStringA"), PrintDebugStringA, NULL),
+
+        INLINE_HOOK_JUMP(0x00449F20,    METHOD_PTR(&CBattleInfoBox::DrawMonsterInfo),   CBattleInfoBox::StubDrawMonsterInfo),
     };
     Nt_PatchMemory(p, countof(p), f, countof(f), hModule);
+
+    ChangeMainWindowProc(*(HWND*)0x2DE92D0);
+    lpfnHandleKeyUp = HandleKeyUp;
 }
 
 void patch_ed62cn7(PVOID hModule)
@@ -1413,7 +1291,6 @@ void patch_ed62cn7(PVOID hModule)
         PATCH_FUNCTION(JUMP, NOT_RVA, addrDisplayStatusPatch0,      ed6DisplayStatusPatch, 0),
         PATCH_FUNCTION(JUMP, NOT_RVA, addrChangeEnemyStatusPatch0,  ed6ChangeEnemyStatusPatch, 0),
         PATCH_FUNCTION(JUMP, NOT_RVA, 0x004A9FD0,   ed6ShowConditionAtNew, 5, ed6ShowConditionAtOld),
-        //  INLINE_HOOK(Nt_GetProcAddress(Nt_GetModuleHandle(L"kernel32.dll"), "OutputDebugStringA"), PrintDebugStringA, NULL),
     };
     Nt_PatchMemory(p, countof(p), f, countof(f), hModule);
 }
@@ -1504,7 +1381,6 @@ void patch_ed62jp7(PVOID hModule)
         PATCH_FUNCTION(JUMP, NOT_RVA, addrDisplayStatusPatch0,      ed6DisplayStatusPatch, 0),
         PATCH_FUNCTION(JUMP, NOT_RVA, addrChangeEnemyStatusPatch0,  ed6ChangeEnemyStatusPatch, 0),
         PATCH_FUNCTION(JUMP, NOT_RVA, 0x004A9970,   ed6ShowConditionAtNew, 5, ed6ShowConditionAtOld),
-        //  INLINE_HOOK(Nt_GetProcAddress(Nt_GetModuleHandle(L"kernel32.dll"), "OutputDebugStringA"), PrintDebugStringA, NULL),
     };
     Nt_PatchMemory(p, countof(p), f, countof(f), hModule);
 }
@@ -1652,7 +1528,6 @@ void patch_ed62jp1020(PVOID hModule)
         PATCH_FUNCTION(JUMP, NOT_RVA, addrDisplayStatusPatch0,      ed6DisplayStatusPatch, 0),
         PATCH_FUNCTION(JUMP, NOT_RVA, addrChangeEnemyStatusPatch0,  ed6ChangeEnemyStatusPatch, 0),
         PATCH_FUNCTION(JUMP, NOT_RVA, 0x004A9530,   ed6ShowConditionAtNew, 5, ed6ShowConditionAtOld),
-        //  INLINE_HOOK(Nt_GetProcAddress(Nt_GetModuleHandle(L"kernel32.dll"), "OutputDebugStringA"), PrintDebugStringA, NULL),
     };
     Nt_PatchMemory(p, countof(p), f, countof(f), hModule);
 }
@@ -1722,7 +1597,6 @@ void patch_ed61cn7(PVOID hModule)
         PATCH_FUNCTION(JUMP, NOT_RVA, addrChangeEnemyStatusPatch0,  ed6ChangeEnemyStatusPatch, 0),
         //PATCH_FUNCTION(JUMP, NOT_RVA, 0x00490A50,   ed6ShowConditionAtNew, 5, ed6ShowConditionAtOld),
         PATCH_CALL    (CALL, NOT_RVA, 0x00414560,   ed6ShowConditionAtNew, 0, ed6ShowConditionAtOld),
-        // INLINE_HOOK(Nt_GetProcAddress(Nt_GetModuleHandle(L"kernel32.dll"), "OutputDebugStringA"), PrintDebugStringA, NULL),
     };
     Nt_PatchMemory(p, countof(p), f, countof(f), hModule);
 }
@@ -1813,15 +1687,12 @@ void patch_ed61jp7(PVOID hModule)
         PATCH_FUNCTION(JUMP, NOT_RVA, addrChangeEnemyStatusPatch0,  ed6ChangeEnemyStatusPatch, 0),
         //PATCH_FUNCTION(JUMP, NOT_RVA, 0x00490930,   ed6ShowConditionAtNew, 5, ed6ShowConditionAtOld),
         PATCH_CALL    (CALL, NOT_RVA, 0x004143F0,   ed6ShowConditionAtNew, 0, ed6ShowConditionAtOld),
-        // INLINE_HOOK(Nt_GetProcAddress(Nt_GetModuleHandle(L"kernel32.dll"), "OutputDebugStringA"), PrintDebugStringA, NULL),
     };
     Nt_PatchMemory(p, countof(p), f, countof(f), hModule);
 }
 
 void Init()
 {
-#if 1
-
     GameVersion gameVersion = getGameVersion();
     if (gameVersion == ed6VersionUnknown)
     {
@@ -1835,45 +1706,6 @@ void Init()
 #if CONSOLE_DEBUG
     QueryPerformanceFrequency(&lFrequency);
 #endif
-    //AllocConsole();
-    //HMODULE hModuleKernel32=GetModuleHandle("kernel32.dll");
-    //FARPROC pFunOutputDebugStringA = GetProcAddress(hModuleKernel32, "OutputDebugStringA");
-    //PrintConsoleW(L"%x %x\r\n", pFunOutputDebugStringA, PrintDebugStringA);
-    //PrintConsoleW(L"%x %x\r\n", hModule, hModuleKernel32);
-    //Nt_PatchMemory(NULL, 0, fApiHook, countof(fApiHook), hModule);
-//#if D3D8_VERSION
-#if 0
-    extern HMODULE hModuleSelf;
-    WCHAR wszFileNameSelf[MAX_PATH];
-    Nt_GetModuleFileName(hModuleSelf, wszFileNameSelf, MAX_PATH);
-    if (_wcsicmp(findnamew(wszFileNameSelf), L"d3d8.dll") == 0)
-    {
-        HMODULE hModuleKernel32 = Nt_GetModuleHandle(L"kernel32.dll");
-        MEMORY_FUNCTION_PATCH f_global1[] =
-        {
-            INLINE_HOOK(Nt_GetProcAddress(hModuleKernel32, "GetModuleHandleW"), GetModuleHandleWNew, GetModuleHandleWOld),
-            INLINE_HOOK(Nt_GetProcAddress(hModuleKernel32, "GetModuleHandleA"), GetModuleHandleANew, GetModuleHandleAOld),
-        };
-        Nt_PatchMemory(NULL, 0, f_global1, countof(f_global1), hModule);
-    }
-#endif
-
-#if 0
-    if (1)
-    {
-        MEMORY_FUNCTION_PATCH f_global[] =
-        {
-            //PATCH_FUNCTION(JUMP, 0, 0x04A6F9, ed6DisplaySkipCondition, 0),
-            //  INLINE_HOOK(Nt_GetProcAddress(Nt_GetModuleHandle(L"kernel32.dll"), "OutputDebugStringA"), PrintDebugStringA, NULL),
-            INLINE_HOOK(Nt_GetProcAddress(Nt_GetModuleHandle(L"user32.dll"), "PeekMessageA"), PeekMessageANew, PeekMessageAOld),
-        };
-        Nt_PatchMemory(NULL, 0, f_global, countof(f_global), hModule);
-        return;
-
-    }
-#endif
-
-#endif //折叠
 
     if (FLAG_ON(gameVersion, ed63min))
     {

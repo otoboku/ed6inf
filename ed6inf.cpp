@@ -3,7 +3,7 @@
 //#pragma comment(lib,"akimisc.lib")
 
 #define USE_NT_VER      1
-#define CONSOLE_DEBUG   1
+#define CONSOLE_DEBUG   0
 
 #include "ed6inf.h"
 //#include "my_commsrc.h"

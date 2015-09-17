@@ -19,6 +19,47 @@
 using namespace NED62;
 #endif
 
+class CBattleInfoBox
+{
+public:
+    VOID SetTextSize(ULONG size_index)
+    {
+        DETOUR_METHOD(CBattleInfoBox, SetTextSize, lpfnSetTextSize, size_index);
+    }
+
+    VOID DrawSimpleText(LONG x, LONG y, PCSTR text, ULONG color_index = COLOR_WHITE, LONG weight = FW_NORMAL)
+    {
+        DETOUR_METHOD(CBattleInfoBox, DrawSimpleText, lpfnDrawSimpleText, x, y, text, color_index, weight);
+    }
+
+#ifdef _ED61_NS_
+    VOID DrawBattleIcon(ULONG_PTR pTexture, PPOINT icon, PPOINT target)
+    {
+        DETOUR_METHOD(CBattleInfoBox, DrawBattleIcon, lpfnDrawBattleIcon, pTexture, icon, target);
+    }
+#endif
+
+#ifdef _ED623_NS_
+    VOID DrawBattleIcon(ULONG_PTR pTexture, PPOINT icon, PPOINT target, BOOL dark = FALSE)
+    {
+        DETOUR_METHOD(CBattleInfoBox, DrawBattleIcon, lpfnDrawBattleIcon, pTexture, icon, target, dark);
+    }
+#endif
+
+    VOID ed6DisplayStatus(ED6_CHARACTER_BATTLE_INF* lpBattleInf);
+    VOID ed6DisplayItemDrop(ED6_CHARACTER_BATTLE_INF* lpBattleInf);
+
+    VOID DrawMonsterInfo();
+    DECL_STATIC_METHOD_POINTER(CBattleInfoBox, DrawMonsterInfo);
+};
+
+INIT_STATIC_MEMBER(CBattleInfoBox::StubDrawMonsterInfo);
+
+FORCEINLINE ULONG CDECL EnumCondition(ULONG index)
+{
+    DETOUR_FUNCTION(EnumCondition, lpfnEnumCondition, index);
+}
+
 RESISTANCE ed6GetResistance(ED6_CHARACTER_BATTLE_INF* lpBattleInf)
 {
     UINT addr;
@@ -125,7 +166,7 @@ RESISTANCE ed6GetResistance(ED6_CHARACTER_BATTLE_INF* lpBattleInf)
 
 VOID THISCALL CBattleInfoBox::ed6DisplayStatus(ED6_CHARACTER_BATTLE_INF* lpBattleInf)
 {
-    if (g_bShowExtraInfo == false)
+    if (g_bShowExtraInfo == FALSE)
     {
         return;
     }
@@ -247,9 +288,9 @@ VOID THISCALL CBattleInfoBox::ed6DisplayStatus(ED6_CHARACTER_BATTLE_INF* lpBattl
         icon.x = 16;
         icon.y = 240+0x8;
         DrawSimpleText(0x72, dwY, "AT");
-        g_bDisplayBattleIcoEx = true;
+        g_bDisplayBattleIcoEx = TRUE;
         DrawBattleIcon(*addrBattleTexture, &icon, &target);
-        g_bDisplayBattleIcoEx = false;
+        g_bDisplayBattleIcoEx = FALSE;
     }
 
 #if CONSOLE_DEBUG
