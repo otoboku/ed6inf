@@ -26,31 +26,52 @@ typedef void (*pHandleKeyUp)(USHORT key);
 
 pHandleKeyUp lpfnHandleKeyUp = [] (USHORT key) {};
 WNDPROC WindowProc;
+USHORT  CodePage = 936;
 
 POINT   battleIcoRec = {16, 8};
+
+
+typedef struct _SStatusRate
+{
+    INT     HP_a;
+    INT     STR_a;
+    INT     DEF_a;
+    INT     ATS_a;
+    INT     ADF_a;
+    INT     SPD_a;
+    INT     DEX_a;
+    INT     AGL_a;
+    INT     MOV_a;
+    //INT     DEXRate_a;
+    //INT     AGLRate_a;
+    INT     HP_b;
+    INT     STR_b;
+    INT     DEF_b;
+    INT     ATS_b;
+    INT     ADF_b;
+    INT     SPD_b;
+    INT     DEX_b;
+    INT     AGL_b;
+    INT     MOV_b;
+    //INT     DEXRate_b;
+    //INT     AGLRate_b;
+    BOOL    ResistNone;
+    BOOL    ResistAbnormalCondition;
+    BOOL    ResistAbilityDown;
+    BOOL    ResistATDelay;
+} SStatusRate;
+
+SStatusRate sRate;
+
+// ini [Battle]
 
 int     nDifficulty = 0;
 int     nSepithUpLimit = 0;
 int     nShowAT = 0;
 int     nShowConditionAT = 0;
-UINT    nConditionATColor = 0;
+int     nConditionATColor = 0;
 
-typedef struct
-{
-    INT HP;
-    INT STR;
-    INT DEF;
-    INT ATS;
-    INT ADF;
-    INT SPD;
-    INT DEX;
-    INT AGL;
-    INT MOV;
-    BOOL    ResistAbnormalCondition;
-    BOOL    ResistAbilityDown;
-} structStatusRate;
-
-structStatusRate statusRateUserDefined;
+BOOL    bShowCraftName = FALSE;
 
 enum
 {
@@ -82,11 +103,13 @@ enum
     SHOW_CONDITION_AT_DEFAULT   = SHOW_CONDITION_AT_HIDE99,
 };
 
-enum :UINT
+enum
 {
     CONDITION_AT_COLOR_ORIGINAL = 0xFFFFFFFF,
     CONDITION_AT_COLOR_GREEN    = 0xFF00FF00,
 };
+
+VOID ConfigInit();
 
 LRESULT NTAPI MainWndProc(HWND Window, UINT Message, WPARAM wParam, LPARAM lParam)
 {
@@ -95,8 +118,15 @@ LRESULT NTAPI MainWndProc(HWND Window, UINT Message, WPARAM wParam, LPARAM lPara
         case WM_KEYUP:
             switch (LOWORD(wParam))
             {
-                case VK_NEXT:
+                case VK_F5:
+                    ConfigInit();
+                    break;
+
                 case VK_F2:
+                    g_bShowExtraInfo ^= TRUE;
+                    break;
+
+                default:
                     lpfnHandleKeyUp(LOWORD(wParam));
                     break;
             }
@@ -144,10 +174,6 @@ namespace NED63
     ULONG_PTR   addrDisplayItemDropPatch0   = 0x0044A68E;
     //ULONG_PTR addrDisplayItemDropPatch1   = addrDisplayItemDropPatch0 + 5;
     ULONG_PTR   addrDisplayItemDropPatch1   = 0x0044A693;
-    ULONG_PTR   addrDisplayGetPar0          = 0x004061C0;
-    //ULONG_PTR addrDisplayGetPar1          = addrDisplayGetPar0 + 5;
-    ULONG_PTR   addrDisplayGetPar2          = 0x27621F8; // 情报？
-    ULONG_PTR   addrDisplayResetWidth0      = 0x0044A556;
 
     ULONG_PTR   addrSoldierNo0              = 0x672828;
     PULONG_PTR  addrLPDir0                  = (PULONG_PTR)0x2CAD950;
@@ -269,6 +295,8 @@ L01:
         char szBuffer[0x120];
 
         int i, j, stealMin, steal[2];
+        int length;
+        ULONG line_count;
         stealMin = 100;
 
         /*偷窃 位置*/
@@ -316,7 +344,16 @@ L01:
                 dwY+=0x8;
             }
 
-            sprintf(szBuffer, "[%3d%%]Group%d", lpBattleInf->DropProbability[i], lpBattleInf->DropIndex[i]);
+            //sprintf(szBuffer, "[%3d%%]Group%d", lpBattleInf->DropProbability[i], lpBattleInf->DropIndex[i]);
+            if (bShowCraftName)
+            {
+                sprintf(szBuffer, "[%3d%%]%s%d", lpBattleInf->DropProbability[i], CodePage == 936? "宝箱" : "曮敔", lpBattleInf->DropIndex[i]);
+            }
+            else
+            {
+                sprintf(szBuffer, "[%3d%%]%s%d", lpBattleInf->DropProbability[i], CodePage == 936? "宝箱" : "曮敔", i+1);
+            }
+            
             DrawSimpleText(0, dwY, szBuffer, COLOR_TITLE);
             dwY+=0xC;
 
@@ -327,17 +364,19 @@ L01:
                     continue;
                 }
 
-                sprintf(szBuffer, "[%3d%%]%s", lpDropItem[i]->probability[j], getItemName(lpDropItem[i]->item[j]));
+                length = sprintf(szBuffer, "[%3d%%]%s", lpDropItem[i]->probability[j], getItemName(lpDropItem[i]->item[j]));
 
                 if (steal[0] == i && steal[1] == j)
                 {
-                    DrawSimpleText(0, dwY, szBuffer, COLOR_GRAY);
+                    //DrawSimpleText(0, dwY, szBuffer, COLOR_GRAY);
+                    line_count = DrawSimpleTextMultiline(0, dwY, 6, 0xC, szBuffer, length, COLOR_GRAY);
                 }
                 else
                 {
-                    DrawSimpleText(0, dwY, szBuffer);
+                    //DrawSimpleText(0, dwY, szBuffer);
+                    line_count = DrawSimpleTextMultiline(0, dwY, 6, 0xC, szBuffer, length);
                 }
-                dwY+=0xC;
+                dwY += 0xC * line_count;
             }
         }
 
@@ -346,6 +385,11 @@ L01:
         DrawSimpleText(0, dwY, (PCSTR)lpcStatusLine, COLOR_LINE);
         SetTextSize(1);
         dwY += 0xA;
+
+        if (!bShowCraftName)
+        {
+            return;
+        }
 
         DrawSimpleText(0, dwY, "Craft Named:", COLOR_TITLE);
         dwY += 0xC;
@@ -356,9 +400,10 @@ L01:
             {
                 continue;
             }
-            sprintf(szBuffer, "%X:%s", i, lpBattleInf->CraftIntro[i].Name);
-            DrawSimpleText(0, dwY, szBuffer);
-            dwY += 0xC;
+            length = sprintf(szBuffer, "%X:%s", i, lpBattleInf->CraftIntro[i].Name);
+            //DrawSimpleText(0, dwY, szBuffer);
+            line_count = DrawSimpleTextMultiline(0, dwY, 2, 0xC, szBuffer, length);
+            dwY += 0xC * line_count;
         }
 
         /*显示分界线*/
@@ -414,55 +459,6 @@ L01:
         }
 
         (this->*StubDrawMonsterInfo)();
-    }
-
-    ASM void ed6DisplayGetParOld()
-    {
-        ASM_DUMMY_AUTO();
-    }
-
-    ASM void ed6DisplayGetPar()
-    {
-        __asm
-        {
-            mov eax,addrDisplayGetPar2;
-            cmp DWORD PTR DS:[EAX],0x1;
-            jne L02;
-            mov ecx,edx;
-            call getSoldierAddr;
-            mov ax,[EAX]ED6_CHARACTER_BATTLE_INF.wUseMagic
-            cmp ax, 0x5E;
-            je L01;
-            cmp ax, 0x5F;
-            je L01;
-            cmp ax, 0x41;
-            je L01;
-L02:
-            ; mov g_bShowInfoPage2, 0;
-            jmp ed6DisplayGetParOld;
-L01:
-            ; mov g_bShowInfoPage2, 1;
-            jmp ed6DisplayGetParOld;
-        }
-    }
-
-    ASM void ed6DisplayResetWidthOld()
-    {
-        ASM_DUMMY_AUTO();
-    }
-
-    ASM void ed6DisplayResetWidth()
-    {
-        #pragma warning (disable: 4414)
-        __asm
-        {
-            cmp g_bShowInfoPage2,1;
-            jne L01;
-            add dword ptr[ESP+8], 0xA;
-        L01:
-            jmp ed6DisplayResetWidthOld;
-        }
-        #pragma warning (default: 4414)
     }
 
     ASM void ed6DisplayBattleSepith()
@@ -545,12 +541,80 @@ L01:
     {
         switch (key)
         {
+            case VK_PRIOR:
             case VK_NEXT:
                 g_bShowInfoPage2 ^= TRUE;
                 break;
-            case VK_F2:
-                g_bShowExtraInfo ^= TRUE;
-                break;
+        }
+    }
+
+    ULONG CBattleInfoBox::DrawSimpleTextMultiline(LONG x, LONG y, LONG indent, ULONG height, PCSTR text, INT length /* = 0 */, ULONG color_index /* = COLOR_WHITE */, LONG weight /* = FW_NORMAL */)
+    {
+        if (text == nullptr || length < 0 || *text == 0)
+        {
+            return 0;
+        }
+        if (length == 0)
+        {
+            length = strlen(text);
+        }
+
+        INT line1_length_max = 10 * 0xC * 2 / height;
+        if (length <= line1_length_max + 1)
+        {
+            DrawSimpleText(x, y, text, color_index, weight);
+            return 1;
+        }
+
+        if (indent >= line1_length_max)
+        {
+            indent = 0;
+        }
+        INT line2_length_max = line1_length_max - indent;
+        INT line_length;
+
+        BOOL    is_end = FALSE;
+        ULONG   line_no = 0;
+        CHAR    buffer[32];
+        PCHAR   line_start = (PCHAR)text;
+        PCHAR   current, next;
+        
+        current = line_start;
+        for (;;)
+        {
+            for (;;)
+            {
+                next = CharNextExA(CodePage, current, 0);
+
+                if (next - line_start > (line_no == 0 ? line1_length_max : line2_length_max))
+                {
+                    break;
+                }
+                if (*next == 0)
+                {
+                    is_end = TRUE;
+                    current = next;
+                    break;
+                }
+                current = next;
+            }
+            line_length = current - line_start;
+            memcpy(buffer, line_start, line_length);
+            buffer[line_length] = 0;
+            length -= line_length;
+            DrawSimpleText(x + (line_no == 0 ? 0 : indent * height / 2), y + line_no * height, buffer, color_index, weight);
+
+            if (is_end)
+            {
+                return line_no + 1;
+            }
+            ++line_no;
+            if (length <= line2_length_max + 1)
+            {
+                DrawSimpleText(x + indent * height / 2, y + line_no * height, current, color_index, weight);
+                return line_no + 1;
+            }
+            line_start = current;
         }
     }
 }
@@ -574,7 +638,7 @@ namespace NED62
     ULONG_PTR   lpfnEnumCondition           = 0x418610;
     ULONG_PTR   addrConditionIconPointBegin = 0x558E9C;
     ULONG_PTR   addrConditionIconPointEnd   = 0x558F9C;
-    PULONG_PTR   addrBattleTexture          = (PULONG_PTR)0x63ED14;
+    PULONG_PTR  addrBattleTexture          = (PULONG_PTR)0x63ED14;
 
     ULONG_PTR   addrDisplayStatusPatch0     = 0x4418D0;
     //ULONG_PTR addrDisplayStatusPatch1     = addrDisplayStatusPatch0 + 5;
@@ -683,7 +747,7 @@ namespace NED61
     ULONG_PTR   lpfnEnumCondition           = 0x413220;
     ULONG_PTR   addrConditionIconPointBegin = 0x517BCC;
     ULONG_PTR   addrConditionIconPointEnd   = 0x517CBC;
-    PULONG_PTR   addrBattleTexture          = (PULONG_PTR)0x5CB918;
+    PULONG_PTR  addrBattleTexture          = (PULONG_PTR)0x5CB918;
 
     ULONG_PTR   addrDisplayStatusPatch0     = 0x434737;
     //ULONG_PTR addrDisplayStatusPatch1     = addrDisplayStatusPatch0 + 5;
@@ -837,32 +901,85 @@ GameVersion getGameVersion()
 
 void ConfigInit()
 {
-    char szConfigExPath[] = ".\\configEx.ini";
-    nDifficulty = NINI::GetPrivateProfileIntA("Battle", "Difficulty", 0, szConfigExPath);
+    WCHAR szConfigExPath[] = L".\\configEx.ini";
+    typedef struct
+    {
+        PVOID       Var;
+        CHAR        Type;
+        LPCWSTR     lpAppName;
+        LPCWSTR     lpKeyName;
+        union
+        {
+            BOOL    bDefault;
+            INT     nDefault;
+            LPCWSTR lpDefault;
+        };
+        //LPCWSTR     lpFileName;
+    } CONFIG_ENTRY;
+
+    static CONFIG_ENTRY Config[] =
+    {
+        { (INT*)&nDifficulty,                   'i',    L"Battle",  L"Difficulty",              0,      },
+        { (INT*)&sRate.HP_a,                    'i',    L"Battle",  L"HP_a",                    1000,   },
+        { (INT*)&sRate.STR_a,                   'i',    L"Battle",  L"STR_a",                   1000,   },
+        { (INT*)&sRate.DEF_a,                   'i',    L"Battle",  L"DEF_a",                   1000,   },
+        { (INT*)&sRate.ATS_a,                   'i',    L"Battle",  L"ATS_a",                   1000,   },
+        { (INT*)&sRate.ADF_a,                   'i',    L"Battle",  L"ADF_a",                   1000,   },
+        { (INT*)&sRate.SPD_a,                   'i',    L"Battle",  L"SPD_a",                   1000,   },
+        { (INT*)&sRate.DEX_a,                   'i',    L"Battle",  L"DEX_a",                   1000,   },
+        { (INT*)&sRate.AGL_a,                   'i',    L"Battle",  L"AGL_a",                   1000,   },
+        { (INT*)&sRate.MOV_a,                   'i',    L"Battle",  L"MOV_a",                   1000,   },
+
+        { (INT*)&sRate.HP_b,                    'i',    L"Battle",  L"HP_b",                    0,      },
+        { (INT*)&sRate.STR_b,                   'i',    L"Battle",  L"STR_b",                   0,      },
+        { (INT*)&sRate.DEF_b,                   'i',    L"Battle",  L"DEF_b",                   0,      },
+        { (INT*)&sRate.ATS_b,                   'i',    L"Battle",  L"ATS_b",                   0,      },
+        { (INT*)&sRate.ADF_b,                   'i',    L"Battle",  L"ADF_b",                   0,      },
+        { (INT*)&sRate.SPD_b,                   'i',    L"Battle",  L"SPD_b",                   0,      },
+        { (INT*)&sRate.DEX_b,                   'i',    L"Battle",  L"DEX_b",                   0,      },
+        { (INT*)&sRate.AGL_b,                   'i',    L"Battle",  L"AGL_b",                   0,      },
+        { (INT*)&sRate.MOV_b,                   'i',    L"Battle",  L"MOV_b",                   0,      },
+
+        { (BOOL*)&sRate.ResistNone,             'b',    L"Battle",  L"ResistNone",              FALSE,  },
+        { (BOOL*)&sRate.ResistAbnormalCondition,'b',    L"Battle",  L"ResistAbnormalCondition", FALSE,  },
+        { (BOOL*)&sRate.ResistAbilityDown,      'b',    L"Battle",  L"ResistAbilityDown",       FALSE,  },
+        { (BOOL*)&sRate.ResistATDelay,          'b',    L"Battle",  L"ResistATDelay",           FALSE,  },
+
+        { (INT*)&nSepithUpLimit,                'i',    L"Battle",  L"SepithUpLimit",           0,      },
+        { (INT*)&nShowAT,                       'i',    L"Battle",  L"ShowAT",                  SHOW_AT_DEFAULT,      },
+        { (INT*)&nShowConditionAT,              'i',    L"Battle",  L"ShowConditionAT",         SHOW_CONDITION_AT_DEFAULT,      },
+        { (INT*)&nConditionATColor,             'i',    L"Battle",  L"ConditionATColor",        0,      },
+
+        { (BOOL*)&bShowCraftName,               'b',    L"Battle",  L"ShowCraftName",           TRUE,   },
+    };
+
+    CONFIG_ENTRY *Entry;
+    FOR_EACH(Entry, Config, countof(Config))
+    {
+        switch (Entry->Type)
+        {
+        case 'b':
+            *(BOOL*)Entry->Var  = NINI::GetPrivateProfileBoolW(Entry->lpAppName, Entry->lpKeyName, Entry->bDefault, szConfigExPath);
+            break;
+        case 'i':
+            *(INT*)Entry->Var   = NINI::GetPrivateProfileIntW(Entry->lpAppName, Entry->lpKeyName, Entry->nDefault, szConfigExPath);
+            break;
+        default:
+            ;
+        }
+    }
+
     if (nDifficulty != 0 && nDifficulty != 1)
     {
         nDifficulty = 0;
     }
-    if (nDifficulty == 1)
-    {
-        statusRateUserDefined.HP = NINI::GetPrivateProfileIntA("Battle", "HP", 100, szConfigExPath);
-        statusRateUserDefined.STR = NINI::GetPrivateProfileIntA("Battle", "STR", 100, szConfigExPath);
-        statusRateUserDefined.DEF = NINI::GetPrivateProfileIntA("Battle", "DEF", 100, szConfigExPath);
-        statusRateUserDefined.ATS = NINI::GetPrivateProfileIntA("Battle", "ATS", 100, szConfigExPath);
-        statusRateUserDefined.ADF = NINI::GetPrivateProfileIntA("Battle", "ADF", 100, szConfigExPath);
-        statusRateUserDefined.SPD = NINI::GetPrivateProfileIntA("Battle", "SPD", 100, szConfigExPath);
-        statusRateUserDefined.DEX = NINI::GetPrivateProfileIntA("Battle", "DEX", 100, szConfigExPath);
-        statusRateUserDefined.AGL = NINI::GetPrivateProfileIntA("Battle", "AGL", 100, szConfigExPath);
-        statusRateUserDefined.MOV = NINI::GetPrivateProfileIntA("Battle", "MOV", 100, szConfigExPath);
-        statusRateUserDefined.ResistAbnormalCondition = NINI::GetPrivateProfileBoolA("Battle", "ResistAbnormalCondition", false, szConfigExPath);
-        statusRateUserDefined.ResistAbilityDown = NINI::GetPrivateProfileBoolA("Battle", "ResistAbilityDown", false, szConfigExPath);
 
+    SaturateConvertEx(&nSepithUpLimit, nSepithUpLimit, 9999, 0);
+    if (nSepithUpLimit == 0)
+    {
+        nSepithUpLimit = FLAG_ON(g_GameVersion, ed63min) ? NED63::SEPITH_UP_LIMIT_ORIGINAL : NED62::SEPITH_UP_LIMIT_ORIGINAL;
     }
 
-    nSepithUpLimit = NINI::GetPrivateProfileIntA("Battle", "SepithUpLimit", 0, szConfigExPath);
-    SaturateConvertEx(&nSepithUpLimit, nSepithUpLimit, 9999, 0);
-
-    nShowAT = NINI::GetPrivateProfileIntA("Battle", "ShowAT", SHOW_AT_DEFAULT, szConfigExPath);
     if (nShowAT != SHOW_AT_NONE &&
         nShowAT != SHOW_AT_SIMPLE &&
         nShowAT != SHOW_AT_ORIGINAL)
@@ -870,7 +987,6 @@ void ConfigInit()
         nShowAT = SHOW_AT_DEFAULT;
     }
 
-    nShowConditionAT = NINI::GetPrivateProfileIntA("Battle", "ShowConditionAT", SHOW_CONDITION_AT_DEFAULT, szConfigExPath);
     if (nShowConditionAT != SHOW_CONDITION_AT_NONE && 
         nShowConditionAT != SHOW_CONDITION_AT_HIDE99 && 
         nShowConditionAT != SHOW_CONDITION_AT_MAX99 && 
@@ -879,10 +995,26 @@ void ConfigInit()
         nShowConditionAT = SHOW_CONDITION_AT_DEFAULT;
     }
 
-    nConditionATColor = NINI::GetPrivateProfileIntA("Battle", "ConditionATColor", FLAG_ON(g_GameVersion, ed63min) ? CONDITION_AT_COLOR_ORIGINAL : CONDITION_AT_COLOR_GREEN, szConfigExPath);
+    if (nConditionATColor == 0)
+    {
+        nConditionATColor = FLAG_ON(g_GameVersion, ed63min) ? CONDITION_AT_COLOR_ORIGINAL : CONDITION_AT_COLOR_GREEN;
+    }
 
 #if CONSOLE_DEBUG
-    PrintConsoleW(L"%s: 0x%X\r\n", L"ConditionATColor", nConditionATColor);
+    FOR_EACH(Entry, Config, countof(Config))
+    {
+        switch (Entry->Type)
+        {
+        case 'b':
+            PrintConsoleW(L"b:%s:%d\r\n", Entry->lpKeyName, *(BOOL*)Entry->Var);
+            break;
+        case 'i':
+            PrintConsoleW(L"i:%s:%d\r\n", Entry->lpKeyName, *(INT*)Entry->Var);
+            break;
+        default:
+            ;
+        }
+    }
 #endif
 }
 
@@ -998,10 +1130,6 @@ void patch_ed63jp7(PVOID hModule)
 
     addrDisplayItemDropPatch0   = 0x0044A04E;
     addrDisplayItemDropPatch1   = addrDisplayItemDropPatch0 + 5;
-    addrDisplayGetPar0          = 0x004061D0;
-    //ULONG addrDisplayGetPar1  = addrDisplayGetPar0 + 5;
-    addrDisplayGetPar2          = 0x275E048; // 情报？
-    addrDisplayResetWidth0      = 0x00449F16;
 
     addrSoldierNo0              = 0x66E780;
     addrLPDir0                  = (PULONG_PTR)0x2CAAFD0;
@@ -1014,6 +1142,7 @@ void patch_ed63jp7(PVOID hModule)
     addrChangeEnemyStatusPatch2 = 0x004A36A0; // call
 
     resolution                  = (PSIZE)0x005B86C0; // 分辨率
+    CodePage                    = 932;
 
     if (*(unsigned char*)addrChangeEnemyStatusPatch0 != 0xE8)   return; //0xE8 call 0xE9 jump; 防止重复补丁
 
@@ -1069,7 +1198,7 @@ void patch_ed63jp7(PVOID hModule)
         PATCH_FUNCTION(JUMP, NOT_RVA, addrDisplayStatusPatch0,      ed6DisplayStatusPatch, 0),
         PATCH_FUNCTION(JUMP, NOT_RVA, addrDisplayItemDropPatch0,    ed6DisplayItemDropPatch, 0),
         //PATCH_FUNCTION(JUMP, NOT_RVA, addrDisplayGetPar0,           ed6DisplayGetPar, 0, ed6DisplayGetParOld),
-        PATCH_FUNCTION(JUMP, NOT_RVA, addrDisplayResetWidth0,       ed6DisplayResetWidth, 0, ed6DisplayResetWidthOld), // jp ver only
+        //PATCH_FUNCTION(JUMP, NOT_RVA, addrDisplayResetWidth0,       ed6DisplayResetWidth, 0, ed6DisplayResetWidthOld), // jp ver only
         PATCH_FUNCTION(JUMP, NOT_RVA, addrChangeEnemyStatusPatch0,  ed6ChangeEnemyStatusPatch, 0),
         PATCH_FUNCTION(CALL, NOT_RVA, 0x0044677F,   ed6DisplayBattleSepith, 0),
         PATCH_FUNCTION(JUMP, NOT_RVA, 0x0048C710,   ed6ShowConditionAtNew, 5, ed6ShowConditionAtOld),
@@ -1113,10 +1242,6 @@ void patch_ed63jp1002(PVOID hModule)
 
     addrDisplayItemDropPatch0   = 0x00449FCE;
     addrDisplayItemDropPatch1   = addrDisplayItemDropPatch0 + 5;
-    addrDisplayGetPar0          = 0x004061D0;
-    //ULONG addrDisplayGetPar1  = addrDisplayGetPar0 + 5;
-    addrDisplayGetPar2          = 0x275DF08; // 情报？
-    addrDisplayResetWidth0      = 0x00449EE6;
 
     addrSoldierNo0              = 0x66E640;
     addrLPDir0                  = (PULONG_PTR)0x2CA9538;
@@ -1138,10 +1263,11 @@ void patch_ed63jp1002(PVOID hModule)
 
     if (*(UINT*)0x005B8654 == 0x59977089 && *(UINT*)0x004A0C34 == 0x5B863C) //日版 windows名称
     {
+        CodePage = 932;
         MEMORY_FUNCTION_PATCH f1[] =
         {
             PATCH_FUNCTION(JUMP, NOT_RVA, addrDisplaySkipCondition0,    ed6DisplaySkipCondition, 0),
-            PATCH_FUNCTION(JUMP, NOT_RVA, addrDisplayResetWidth0,       ed6DisplayResetWidth, 0, ed6DisplayResetWidthOld), // jp ver only
+            //PATCH_FUNCTION(JUMP, NOT_RVA, addrDisplayResetWidth0,       ed6DisplayResetWidth, 0, ed6DisplayResetWidthOld), // jp ver only
         };
         Nt_PatchMemory(NULL, 0, f1, countof(f1), hModule);
     }
@@ -1293,6 +1419,8 @@ void patch_ed62cn7(PVOID hModule)
         PATCH_FUNCTION(JUMP, NOT_RVA, 0x004A9FD0,   ed6ShowConditionAtNew, 5, ed6ShowConditionAtOld),
     };
     Nt_PatchMemory(p, countof(p), f, countof(f), hModule);
+
+    ChangeMainWindowProc(*(HWND*)0x2F2BA20);
 }
 
 void patch_ed62jp7(PVOID hModule)
@@ -1330,6 +1458,7 @@ void patch_ed62jp7(PVOID hModule)
     addrChangeEnemyStatusPatch2 = 0x004CCF00; // call
 
     resolution                  = (PSIZE)0x00563CB0; // 分辨率
+    CodePage                    = 932;
 
     if (*(unsigned char*)addrChangeEnemyStatusPatch0 != 0xE8)   return; //0xE8 call 0xE9 jump; 防止重复补丁
 
@@ -1383,6 +1512,8 @@ void patch_ed62jp7(PVOID hModule)
         PATCH_FUNCTION(JUMP, NOT_RVA, 0x004A9970,   ed6ShowConditionAtNew, 5, ed6ShowConditionAtOld),
     };
     Nt_PatchMemory(p, countof(p), f, countof(f), hModule);
+
+    ChangeMainWindowProc(*(HWND*)0x2F2CDFC);
 }
 
 void patch_ed62jp1020(PVOID hModule)
@@ -1434,6 +1565,7 @@ void patch_ed62jp1020(PVOID hModule)
 
     if (*(UINT*)0x00562C04 == 0x59977089 && *(UINT*)0x004C6F01 == 0x562BEC) //日版 windows名称
     {
+        CodePage = 932;
         MEMORY_FUNCTION_PATCH f1[] =
         {
             PATCH_FUNCTION(JUMP, NOT_RVA, addrDisplaySkipCondition0,    ed6DisplaySkipCondition, 0), // jp ver only
@@ -1485,6 +1617,8 @@ void patch_ed62jp1020(PVOID hModule)
             PATCH_FUNCTION(JUMP, NOT_RVA, 0x004A9530,   ed6ShowConditionAtNewLi, 5, ed6ShowConditionAtOld), // 状态AT不同分辨率居中显示，li状态图标上移，所以特殊对待
         };
         Nt_PatchMemory(p1, countof(p1), f1, countof(f1),  hModule);
+
+        ChangeMainWindowProc(*(HWND*)0x2F2A35C);
         return;
     }
 
@@ -1530,6 +1664,8 @@ void patch_ed62jp1020(PVOID hModule)
         PATCH_FUNCTION(JUMP, NOT_RVA, 0x004A9530,   ed6ShowConditionAtNew, 5, ed6ShowConditionAtOld),
     };
     Nt_PatchMemory(p, countof(p), f, countof(f), hModule);
+
+    ChangeMainWindowProc(*(HWND*)0x2F2A35C);
 }
 
 void patch_ed61cn7(PVOID hModule)
@@ -1599,6 +1735,8 @@ void patch_ed61cn7(PVOID hModule)
         PATCH_CALL    (CALL, NOT_RVA, 0x00414560,   ed6ShowConditionAtNew, 0, ed6ShowConditionAtOld),
     };
     Nt_PatchMemory(p, countof(p), f, countof(f), hModule);
+
+    ChangeMainWindowProc(*(HWND*)0x19417A4);
 }
 
 void patch_ed61jp7(PVOID hModule)
@@ -1636,6 +1774,7 @@ void patch_ed61jp7(PVOID hModule)
     addrChangeEnemyStatusPatch2 = 0x004AE440; // call
 
     resolution                  = (PSIZE)0x00520F04; // 分辨率
+    CodePage                    = 932;
 
     if (*(unsigned char*)addrChangeEnemyStatusPatch0 != 0xE8)   return; //0xE8 call 0xE9 jump; 防止重复补丁
 
@@ -1689,6 +1828,8 @@ void patch_ed61jp7(PVOID hModule)
         PATCH_CALL    (CALL, NOT_RVA, 0x004143F0,   ed6ShowConditionAtNew, 0, ed6ShowConditionAtOld),
     };
     Nt_PatchMemory(p, countof(p), f, countof(f), hModule);
+
+    ChangeMainWindowProc(*(HWND*)0x1944244);
 }
 
 void Init()
@@ -1706,35 +1847,6 @@ void Init()
 #if CONSOLE_DEBUG
     QueryPerformanceFrequency(&lFrequency);
 #endif
-
-    if (FLAG_ON(gameVersion, ed63min))
-    {
-        using namespace NED63;
-        if (nSepithUpLimit == 0)
-        {
-            nSepithUpLimit = SEPITH_UP_LIMIT_ORIGINAL;
-        }
-    }
-    else if (FLAG_ON(gameVersion, ed62min))
-    {
-        using namespace NED62;
-        if (nSepithUpLimit == 0)
-        {
-            nSepithUpLimit = SEPITH_UP_LIMIT_ORIGINAL;
-        }
-    }
-    else if (FLAG_ON(gameVersion, ed61min))
-    {
-        using namespace NED61;
-        if (nSepithUpLimit == 0)
-        {
-            nSepithUpLimit = SEPITH_UP_LIMIT_ORIGINAL;
-        }
-    }
-    else
-    {
-        return;
-    }
 
     switch (gameVersion)
     {
