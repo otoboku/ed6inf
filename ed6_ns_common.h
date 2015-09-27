@@ -57,6 +57,22 @@ public:
 
 INIT_STATIC_MEMBER(CBattleInfoBox::StubDrawMonsterInfo);
 
+class CBattle
+{
+public:
+    bool LoadStatusData(ULONG MSFile, ULONG ChrPosition, ULONG a3 = 0);
+    VOID dump_status_rev_special(ULONG ChrPosition);
+
+    DECL_STATIC_METHOD_POINTER(CBattle, LoadStatusData);
+};
+
+INIT_STATIC_MEMBER(CBattle::StubLoadStatusData);
+
+ED6_CHARACTER_BATTLE_INF* getChrBattleInf()
+{
+    return (ED6_CHARACTER_BATTLE_INF*)addrSoldierNo0;
+}
+
 FORCEINLINE ULONG CDECL EnumCondition(ULONG index)
 {
     DETOUR_FUNCTION(EnumCondition, lpfnEnumCondition, index);
@@ -301,33 +317,57 @@ VOID THISCALL CBattleInfoBox::ed6DisplayStatus(ED6_CHARACTER_BATTLE_INF* lpBattl
 #endif
 }
 
+INT get_difficulty()
+{
+    return nDifficulty;
+}
+
+VOID ed6SetEnemyFinalStatusPsp(ED6_CHARACTER_BATTLE_INF* lpBattleInf);
+
 void __cdecl ed6ChangeEnemyStatus(UINT SoldierNo, ED6_STATUS* pStatusSum, ED6_STATUS* pStatusBasic)
 {
-    if (nDifficulty == 0 || IsSoldierParty(SoldierNo))
+    if (nDifficulty == DIFFICULTY_PC_ORIGINAL || IsSoldierParty(SoldierNo))
     {
         return;
     }
 
-    ED6_CHARACTER_BATTLE_INF* lpBattleInf = (ED6_CHARACTER_BATTLE_INF*)addrSoldierNo0 + SoldierNo;
+    ED6_CHARACTER_BATTLE_INF* lpBattleInf = CONTAINING_RECORD(pStatusSum, ED6_CHARACTER_BATTLE_INF, StatusSum);
+    //ED6_CHARACTER_BATTLE_INF* lpBattleInf = (ED6_CHARACTER_BATTLE_INF*)addrSoldierNo0 + SoldierNo;
 
-    if (lpBattleInf->StatusSum.HPMax == lpBattleInf->StatusSum.HP)
+    if (nDifficulty >= DIFFICULTY_PS_NORMAL && nDifficulty <= DIFFICULTY_PS_EASY)
     {
-        SaturateConvert(&lpBattleInf->StatusSum.HPMax, (INT64)lpBattleInf->StatusSum.HPMax * sRate.HP_a / 1000 + sRate.HP_b);
-        lpBattleInf->StatusSum.HP = lpBattleInf->StatusSum.HPMax;
+#if 0
+        pStatusSum->HPMax = 1000;
+        pStatusSum->STR = 1000;
+        pStatusSum->DEF = 1000;
+        pStatusSum->ATS = 1000;
+        pStatusSum->ADF = 1000;
+        pStatusSum->SPD = 1000;
+        pStatusSum->MOV = 1000;
+#endif
+        ed6SetEnemyFinalStatusPsp(lpBattleInf);
     }
     else
     {
-        SaturateConvert(&lpBattleInf->StatusSum.HPMax, (INT64)lpBattleInf->StatusSum.HPMax * sRate.HP_a / 1000 + sRate.HP_b);
-        SaturateConvert(&lpBattleInf->StatusSum.HP, (INT64)lpBattleInf->StatusSum.HP * sRate.HP_a / 1000 + sRate.HP_b);
+        if (pStatusSum->HPMax == pStatusSum->HP)
+        {
+            SaturateConvert(&pStatusSum->HPMax, (INT64)pStatusSum->HPMax * sRate.HP_a / 1000 + sRate.HP_b);
+            pStatusSum->HP = pStatusSum->HPMax;
+        }
+        else
+        {
+            SaturateConvert(&pStatusSum->HPMax, (INT64)pStatusSum->HPMax * sRate.HP_a / 1000 + sRate.HP_b);
+            SaturateConvert(&pStatusSum->HP, (INT64)pStatusSum->HP * sRate.HP_a / 1000 + sRate.HP_b);
+        }
+        SaturateConvert(&pStatusSum->STR, (INT64)pStatusSum->STR * sRate.STR_a / 1000 + sRate.STR_b);
+        SaturateConvert(&pStatusSum->DEF, (INT64)pStatusSum->DEF * sRate.DEF_a / 1000 + sRate.DEF_b);
+        SaturateConvert(&pStatusSum->ATS, (INT64)pStatusSum->ATS * sRate.ATS_a / 1000 + sRate.ATS_b);
+        SaturateConvert(&pStatusSum->ADF, (INT64)pStatusSum->ADF * sRate.ADF_a / 1000 + sRate.ADF_b);
+        SaturateConvert(&pStatusSum->SPD, (INT64)pStatusSum->SPD * sRate.SPD_a / 1000 + sRate.SPD_b);
+        SaturateConvertEx(&pStatusSum->DEX, (INT64)pStatusSum->DEX * sRate.DEX_a / 1000 + sRate.DEX_b, (SHORT)0xCCC);
+        SaturateConvertEx(&pStatusSum->AGL, (INT64)pStatusSum->AGL * sRate.AGL_a / 1000 + sRate.AGL_b, (SHORT)0xCCC);
+        SaturateConvert(&pStatusSum->MOV, (INT64)pStatusSum->MOV * sRate.MOV_a / 1000 + sRate.MOV_b);
     }
-    SaturateConvert(&lpBattleInf->StatusSum.STR, (INT64)lpBattleInf->StatusSum.STR * sRate.STR_a / 1000 + sRate.STR_b);
-    SaturateConvert(&lpBattleInf->StatusSum.DEF, (INT64)lpBattleInf->StatusSum.DEF * sRate.DEF_a / 1000 + sRate.DEF_b);
-    SaturateConvert(&lpBattleInf->StatusSum.ATS, (INT64)lpBattleInf->StatusSum.ATS * sRate.ATS_a / 1000 + sRate.ATS_b);
-    SaturateConvert(&lpBattleInf->StatusSum.ADF, (INT64)lpBattleInf->StatusSum.ADF * sRate.ADF_a / 1000 + sRate.ADF_b);
-    SaturateConvert(&lpBattleInf->StatusSum.SPD, (INT64)lpBattleInf->StatusSum.SPD * sRate.SPD_a / 1000 + sRate.SPD_b);
-    SaturateConvertEx(&lpBattleInf->StatusSum.DEX, (INT64)lpBattleInf->StatusSum.DEX * sRate.DEX_a / 1000 + sRate.DEX_b, (SHORT)0xCCC);
-    SaturateConvertEx(&lpBattleInf->StatusSum.AGL, (INT64)lpBattleInf->StatusSum.AGL * sRate.AGL_a / 1000 + sRate.AGL_b, (SHORT)0xCCC);
-    SaturateConvert(&lpBattleInf->StatusSum.MOV, (INT64)lpBattleInf->StatusSum.MOV * sRate.MOV_a / 1000 + sRate.MOV_b);
 
     if (sRate.ResistNone)
     {
@@ -345,6 +385,21 @@ void __cdecl ed6ChangeEnemyStatus(UINT SoldierNo, ED6_STATUS* pStatusSum, ED6_ST
     if (sRate.ResistATDelay)
     {
         SET_FLAG(lpBattleInf->HitFlag, CHR_FLAG_ResistATDelay);
+    }
+
+    if (bUnlimitedSummon)
+    {
+        ED6_CRAFT_INFO* craft;
+        FOR_EACH_ARRAY(craft, lpBattleInf->CraftInf)
+        {
+            if (craft->AnimationType == 0x134 || craft->AnimationType == 0x138)
+            {
+                if (craft->Effect2Parameter != 0)
+                {
+                    craft->Effect2Parameter = 0xFF;
+                }
+            }
+        }
     }
 }
 

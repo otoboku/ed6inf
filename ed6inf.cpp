@@ -4,34 +4,12 @@
 
 #define USE_NT_VER      1
 #define CONSOLE_DEBUG   0
+#define ENABLE_LOG  0
 
 #include "ed6inf.h"
 //#include "my_commsrc.h"
 #include "MyLibrary.cpp"
 
-#define ENABLE_LOG  0
-
-#if ENABLE_LOG
-void WriteLog(PCWSTR Format, ...)
-{
-    NtFileDisk log;
-    WCHAR Buffer[0xFF0];
-
-    log.CreateIfNotExist(L"log.txt");
-    if (log.GetSize32() == 0)
-    {
-        ULONG BOM = BOM_UTF16_LE;
-        log.Write(&BOM, 2);
-    }
-
-    log.Seek(0, FILE_END);
-
-    log.Write(Buffer, vswprintf(Buffer, Format, (va_list)(&Format + 1)) * 2);
-    log.Write(L"\r\n", 4);
-}
-#else
-#define WriteLog(...)
-#endif
 
 #if 0
 #if D3D8_VERSION

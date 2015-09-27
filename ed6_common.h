@@ -99,39 +99,34 @@ namespace NED61
     {
         return SoldierNo < 6;
     }
-
-    bool IsSoldierEnemy(UINT SoldierNo)
-    {
-        return (SoldierNo >= 6) && (SoldierNo < 6+8);
-    }
 }
 
 namespace NED62
 {
     typedef struct
     {
-        UINT                Level;
-        UINT                HPMax;
-        UINT                HP;
-        USHORT              EPMax;
-        USHORT              EP;
-        USHORT              CP;
+        UINT                Level;          // 0
+        UINT                HPMax;          // 4
+        UINT                HP;             // 8
+        USHORT              EPMax;          // C
+        USHORT              EP;             // E
+        USHORT              CP;             // 10
         DUMMY_STRUCT(2);
-        UINT                EXP;
-        SHORT               STR;
-        SHORT               DEF;
-        SHORT               ATS;
-        SHORT               ADF;
-        SHORT               DEX;
-        SHORT               AGL;
-        SHORT               MOV;
-        SHORT               SPD;
-        USHORT              CPMAX;
+        UINT                EXP;            // 14
+        SHORT               STR;            // 18
+        SHORT               DEF;            // 1A
+        SHORT               ATS;            // 1C
+        SHORT               ADF;            // 1E
+        SHORT               DEX;            // 20
+        SHORT               AGL;            // 22
+        SHORT               MOV;            // 24
+        SHORT               SPD;            // 26
+        USHORT              CPMAX;          // 28
+        DUMMY_STRUCT(4);                    
+        USHORT              RNG;            // 2E
         DUMMY_STRUCT(4);
-        USHORT              RNG;
-        DUMMY_STRUCT(4);
-        RESISTANCE          condition;  // RESISTANCE类型，进程中有效
-        USHORT              CharacterIndex;
+        RESISTANCE          condition;      // 34
+        USHORT              CharacterIndex; // 38
         DUMMY_STRUCT(2);
     } ED6_CHARACTER_STATUS;
     typedef ED6_CHARACTER_STATUS ED6_STATUS;
@@ -143,11 +138,6 @@ namespace NED62
     bool IsSoldierParty(UINT SoldierNo)
     {
         return SoldierNo < 8;
-    }
-
-    bool IsSoldierEnemy(UINT SoldierNo)
-    {
-        return (SoldierNo >= 8) && (SoldierNo < 8+8);
     }
 }
 
@@ -163,11 +153,6 @@ namespace NED63
     bool IsSoldierParty(UINT SoldierNo)
     {
         return SoldierNo < 8;
-    }
-
-    bool IsSoldierEnemy(UINT SoldierNo)
-    {
-        return (SoldierNo >= 8) && (SoldierNo < 8+8);
     }
 }
 
@@ -299,7 +284,7 @@ namespace NED61
                 ushort              Orb[6];                     // 回路   7个
                 //DUMMY_STRUCT(2);
                 ED6_AI_INFO         NormalAttack;
-                ED6_AI_INFO         Art[80];
+                ED6_AI_INFO         Arts[80];
                 ED6_AI_INFO         Craft[10];
                 ED6_AI_INFO         SCraft[4];
 
@@ -369,7 +354,7 @@ namespace NED62
                 ushort              Orb[7];                     // 回路   7个
                 //DUMMY_STRUCT(2);
                 ED6_AI_INFO         NormalAttack;
-                ED6_AI_INFO         Art[80];
+                ED6_AI_INFO         Arts[80];
                 ED6_AI_INFO         Craft[10];
                 ED6_AI_INFO         SCraft[5];
 
@@ -424,9 +409,11 @@ namespace NED63
                 USHORT              wActType;
                 DUMMY_STRUCT(0xA);
                 USHORT              wUseMagic;
-                DUMMY_STRUCT(0xA0);
+                DUMMY_STRUCT(0xA0-8);
                 //DUMMY_STRUCT(0x210);
                 // 0x22C
+                PCHAR               ChrName;
+                DUMMY_STRUCT(4);
                 ED6_STATUS          StatusBasic;                // normal难度基础值
                 ED6_STATUS          StatusSum;                  // 算上难度、装备、回路
                 USHORT              MoveSPD;                    // 移动速度，我方人员也从ms文件中读取
@@ -445,7 +432,7 @@ namespace NED63
                 ushort              Orb[7];                     // 回路   7个
                 DUMMY_STRUCT(2);
                 ED6_AI_INFO         NormalAttack;
-                ED6_AI_INFO         Art[80];
+                ED6_AI_INFO         Arts[80];
                 ED6_AI_INFO         Craft[10];
                 ED6_AI_INFO         SCraft[5];
 
@@ -478,7 +465,7 @@ namespace NED63
     } ED6_DROP_ITEM;
 }
 
-
+/*
 namespace NEDZERO
 {
     typedef struct
@@ -585,6 +572,99 @@ namespace NEDAO
     } ED6_CHARACTER_BATTLE_INF;
     typedef ED6_CHARACTER_BATTLE_INF ED7_CHARACTER_BATTLE_INF;
 }
+*/
+
+INT STATUS_REVISE[4] = {0, -4, -9, 6};
+
+typedef struct _SSTATUS_REVISE_SPECIAL // 0x20
+{
+    ULONG   MSFile;
+    union
+    {
+        USHORT      entry[6];
+        struct
+        {
+            USHORT  HP;     // 0x4
+            USHORT  STR;    // 0x6
+            USHORT  DEF;    // 0x8
+            USHORT  ATS;    // 0xA
+            USHORT  ADF;    // 0xC
+            USHORT  SPD;    // 0xE
+        };
+    };
+    ULONG   N_RESIST;       // 0x10
+    ULONG   E_RESIST;       // 0x14
+    ULONG   N_AI;           // 0x18
+    ULONG   E_AI;           // 0x1C
+} SSTATUS_REVISE_SPECIAL;
+
+typedef union _SSTATUS_REVISE_DIFFICULTY // 0xC
+{
+    USHORT      entry[6];
+    struct
+    {
+        USHORT  HP;     // 0x0
+        USHORT  STR;    // 0x2
+        USHORT  DEF;    // 0x4
+        USHORT  ATS;    // 0x6
+        USHORT  ADF;    // 0x8
+        USHORT  SPD;    // 0xA
+    };
+
+} SSTATUS_REVISE_DIFFICULTY;
+
+typedef union _SSTATUS_RATE_MINI
+{
+    int         entry[6];
+    struct
+    {
+        int     HP;
+        int     STR;
+        int     DEF;
+        int     ATS;
+        int     ADF;
+        int     SPD;
+    };
+    
+} SSTATUS_RATE_MINI;
+
+enum STATUS_TYPE
+{
+    STATUS_TYPE_HP      = 0,
+    STATUS_TYPE_STR     = 1,
+    STATUS_TYPE_DEF     = 2,
+    STATUS_TYPE_ATS     = 3,
+    STATUS_TYPE_ADF     = 4,
+    STATUS_TYPE_SPD     = 5,
+    STATUS_TYPE_MOV     = 6,
+    STATUS_TYPE_RESIST  = 7,
+};
+
+enum BTREV_AI_FLAGS
+{
+    BTREV_AI_INC_ARTS   = 0x1,
+    BTREV_AI_DEC_ARTS   = 0x2,
+    BTREV_AI_INC_CRAFT  = 0x4,
+    BTREV_AI_DEC_CRAFT  = 0x8,
+    BTREV_AI_INC_SCRAFT = 0x10,
+    BTREV_AI_DEC_SCRAFT = 0x20,
+
+    BTREV_AI_INC_MOV    = 0x40,
+    BTREV_AI_DEC_MOV    = 0x80,
+
+    BTREV_AI_INC_SUMMON = 0x100,
+    BTREV_AI_DEC_SUMMON = 0x200,
+    BTREV_AI_SET_0      = 0x400,
+    BTREV_AI_SET_1      = 0x800,
+    BTREV_AI_SET_2      = 0x1000,
+};
+
+enum BTREV_AI_PROBABILITY_CHANGE_TYPE
+{
+    BTREV_AI_PROBABILITY_INC = 0,
+    BTREV_AI_PROBABILITY_DEC = 1,
+};
+
 #pragma pack()
 #pragma warning (default: 4201)
 

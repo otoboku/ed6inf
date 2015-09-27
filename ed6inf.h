@@ -4,12 +4,30 @@
 #include "ed6inf_data.h"
 #include "misc_aki.h"
 
-BOOL  g_bShowExtraInfo = TRUE;
-BOOL  g_bDisplayBattleIcoEx = FALSE;
-int   g_bShowInfoPage2 = 0;
-
 #if CONSOLE_DEBUG
 LARGE_INTEGER lFrequency, lStopCounter, lStartCounter;
+#endif
+
+#if ENABLE_LOG
+void WriteLog(PCWSTR Format, ...)
+{
+    NtFileDisk log;
+    WCHAR Buffer[0xFF0];
+    
+    log.CreateIfNotExist(L"log.txt");
+    if (log.GetSize32() == 0)
+    {
+        ULONG BOM = BOM_UTF16_LE;
+        log.Write(&BOM, 2);
+    }
+    
+    log.Seek(0, FILE_END);
+    
+    log.Write(Buffer, vswprintf(Buffer, Format, (va_list)(&Format + 1)) * 2);
+    log.Write(L"\r\n", 4);
+}
+#else
+#define WriteLog(...)
 #endif
 
 #define METHOD_PTR(_method) PtrAdd((PVOID)NULL, _method)
@@ -28,6 +46,9 @@ pHandleKeyUp lpfnHandleKeyUp = [] (USHORT key) {};
 WNDPROC WindowProc;
 USHORT  CodePage = 936;
 
+BOOL    g_bShowExtraInfo = TRUE;
+BOOL    g_bDisplayBattleIcoEx = FALSE;
+int     g_bShowInfoPage2 = 0;
 POINT   battleIcoRec = {16, 8};
 
 
@@ -72,6 +93,24 @@ int     nShowConditionAT = 0;
 int     nConditionATColor = 0;
 
 BOOL    bShowCraftName = FALSE;
+BOOL    bForceShowMonsInf = FALSE;
+BOOL    bUnlimitedSummon = FALSE;
+BOOL    bFixEnemyStatusBug = FALSE;
+
+enum
+{
+    DIFFICULTY_PC_ORIGINAL      = -1,
+    DIFFICULTY_PS_NORMAL        = 0,
+    DIFFICULTY_PS_HARD          = 1,
+    DIFFICULTY_PS_NIGHTMARE     = 2,
+    DIFFICULTY_PS_EASY          = 3,
+    DIFFICULTY_PS_CUSTOM        = 4,
+    DIFFICULTY_PC_CUSTOM        = 5,
+    DIFFICULTY_INI_MAX,
+
+    DIFFICULTY_DEFAULT          = 0,
+};
+BOOL    bPSP_MODE = FALSE;
 
 enum
 {
@@ -142,53 +181,74 @@ VOID ChangeMainWindowProc(HWND GameWindow)
         WindowProc = (WNDPROC)SetWindowLongPtrA(GameWindow, GWL_WNDPROC, (LONG_PTR)MainWndProc);
 }
 
+namespace NED6123
+{
+    pSprintf    sprintf                     = (pSprintf)0;
+    pGetAddr    getItemInf                  = (pGetAddr)0;
+
+    ULONG_PTR   lpfnDrawSimpleText          = 0;
+    ULONG_PTR   lpfnFtol                    = 0;
+    ULONG_PTR   lpfnSetTextSize             = 0;
+    ULONG_PTR   lpfnDrawBattleIcon          = 0;
+
+    ULONG_PTR   addrDisplaySkipCondition0   = (ULONG_PTR)-1; // patch at
+    ULONG_PTR   addrDisplaySkipCondition1   = 0; // addrDisplaySkipCondition0 + 5; // ret1
+    ULONG_PTR   addrDisplaySkipCondition2   = 0; // ret2
+
+    ULONG_PTR   lpcStatusLine               = 0;
+    ULONG_PTR   lpfnEnumCondition           = 0;
+    ULONG_PTR   addrConditionIconPointBegin = 0;
+    ULONG_PTR   addrConditionIconPointEnd   = 0;
+    PULONG_PTR  addrBattleTexture           = (PULONG_PTR)0;
+
+    ULONG_PTR   addrDisplayStatusPatch0     = (ULONG_PTR)-1;
+    ULONG_PTR   addrDisplayStatusPatch1     = 0; // addrDisplayStatusPatch0 + 5;
+    ULONG_PTR   addrDisplayStatusPatch2     = 0; // call
+
+    ULONG_PTR   addrDisplayBattleIcoEx0     = (ULONG_PTR)-1;
+    DWORD       dwYStart                    = 0;
+
+    ULONG_PTR   addrDisplayItemDropPatch0   = (ULONG_PTR)-1;
+    ULONG_PTR   addrDisplayItemDropPatch1   = 0; // addrDisplayItemDropPatch0 + 5;
+
+    ULONG_PTR   addrSoldierNo0              = 0;
+    PULONG_PTR  addrLPDir0                  = (PULONG_PTR)0;
+    PULONG_PTR  addrBattleNowIndex          = (PULONG_PTR)0;
+    pGetAddr    getItemDrop                 = (pGetAddr)0;
+    pGetAddr    getItemName                 = (pGetAddr)0;
+
+    ULONG_PTR   addrChangeEnemyStatusPatch0 = (ULONG_PTR)-1;
+    ULONG_PTR   addrChangeEnemyStatusPatch1 = 0; // addrChangeEnemyStatusPatch0 + 5;
+    ULONG_PTR   addrChangeEnemyStatusPatch2 = 0; // call
+
+    ULONG_PTR   addrCheckQuartzPatch        = (ULONG_PTR)-1;
+
+    PSIZE       resolution                  = (PSIZE)0; // 分辨率
+
+    CONST USHORT ITEM_ID_INFORMATION = 0x291;
+
+    ULONG_PTR   StubCheckQuartz;
+    bool CDECL CheckQuartz(ULONG ChrPosition, USHORT ItemId, PULONG EquippedIndex = nullptr)
+    {
+        if (bForceShowMonsInf && ItemId == ITEM_ID_INFORMATION)
+        {
+            if (EquippedIndex)
+            {
+                *EquippedIndex = 1;
+            }
+            return true;
+        }
+        return ((TYPE_OF(&CheckQuartz))StubCheckQuartz)(ChrPosition, ItemId, EquippedIndex);
+    }
+}
+
 namespace NED63
 {
-    pSprintf    sprintf                     = (pSprintf)0x59234F;
-    pGetAddr    getItemInf                  = (pGetAddr)0x4A0270;
+    using namespace NED6123;
+    using NED6123::sprintf;
 
-    ULONG_PTR   lpfnDrawSimpleText          = 0x0052B170;
-    ULONG_PTR   lpfnFtol                    = 0x5922F0;
-    ULONG_PTR   lpfnSetTextSize             = 0x529530;
-    ULONG_PTR   lpfnDrawBattleIcon          = 0x52BCB0;
-
-    ULONG_PTR   addrDisplaySkipCondition0   = 0x0044A6F9; // patch at
-    //ULONG_PTR addrDisplaySkipCondition1   = addrDisplaySkipCondition0 + 5; // ret1
-    ULONG_PTR   addrDisplaySkipCondition1   = 0x0044A6FE;
-    ULONG_PTR   addrDisplaySkipCondition2   = 0x0044A792; // ret2
-
-    ULONG_PTR   lpcStatusLine               = 0x5B7410;
-    ULONG_PTR   lpfnEnumCondition           = 0x41B070;
-    ULONG_PTR   addrConditionIconPointBegin = 0x5B310C;
-    ULONG_PTR   addrConditionIconPointEnd   = 0x5B3214;
-    PULONG_PTR  addrBattleTexture           = (PULONG_PTR)0x6A27FC;
-
-    ULONG_PTR   addrDisplayStatusPatch0     = 0x44AC31;
-    //ULONG_PTR addrDisplayStatusPatch1     = addrDisplayStatusPatch0 + 5;
-    ULONG_PTR   addrDisplayStatusPatch1     = 0x44AC36;
-    ULONG_PTR   addrDisplayStatusPatch2     = 0x52B1E0; // call
-
-    ULONG_PTR   addrDisplayBattleIcoEx0     = 0x0052BCFA;
-    DWORD       dwYStart                    = 0x110;
-
-    ULONG_PTR   addrDisplayItemDropPatch0   = 0x0044A68E;
-    //ULONG_PTR addrDisplayItemDropPatch1   = addrDisplayItemDropPatch0 + 5;
-    ULONG_PTR   addrDisplayItemDropPatch1   = 0x0044A693;
-
-    ULONG_PTR   addrSoldierNo0              = 0x672828;
-    PULONG_PTR  addrLPDir0                  = (PULONG_PTR)0x2CAD950;
-    PULONG_PTR  addrBattleNowIndex          = (PULONG_PTR)0x721A38;
-    pGetAddr    getItemDrop                 = (pGetAddr)0x004A0E60;
-    pGetAddr    getItemName                 = (pGetAddr)0x004A0370;
-
-    ULONG_PTR   addrChangeEnemyStatusPatch0 = 0x0044CDAF;
-    //ULONG_PTR addrChangeEnemyStatusPatch1 = addrChangeEnemyStatusPatch0 + 5;
-    ULONG_PTR   addrChangeEnemyStatusPatch1 = 0x0044CDB4;
-    ULONG_PTR   addrChangeEnemyStatusPatch2 = 0x004A4360; // call
-
-    PSIZE       resolution                  = (PSIZE)0x005BDFF0; // 分辨率
-    
-    ULONG_PTR   battleInfoBox               = 0;
+    BOOL get_status_rev_special(SSTATUS_REVISE_SPECIAL* rev, SSTATUS_REVISE_SPECIAL* rev_out, ULONG ms_file);
+    INT  calc_specific_status(int type, int revise, int value, SSTATUS_REVISE_SPECIAL* revise_special);
 
     #define _ED63_NS_
     #include "ed6_ns_common.h"
@@ -353,7 +413,7 @@ L01:
             {
                 sprintf(szBuffer, "[%3d%%]%s%d", lpBattleInf->DropProbability[i], CodePage == 936? "宝箱" : "曮敔", i+1);
             }
-            
+
             DrawSimpleText(0, dwY, szBuffer, COLOR_TITLE);
             dwY+=0xC;
 
@@ -465,11 +525,9 @@ L01:
     {
         __asm
         {
-            cmp ebp, 0x1E0;
-            jle L01;
-            mov ebp, 0x1E0;
-L01:
-            MOV ECX,0x21C;
+            mov     ecx, 0x21C;
+            cmp     ebp, ecx;
+            cmova   ebp, ecx;
             retn;
         }
     }
@@ -504,6 +562,7 @@ L01:
         }
     }
 
+    NoInline
     void __cdecl ed6ShowConditionAtOld(ULONG AT, float x, float y, ULONG color)
     {
         ASM_DUMMY_AUTO();
@@ -578,7 +637,7 @@ L01:
         CHAR    buffer[32];
         PCHAR   line_start = (PCHAR)text;
         PCHAR   current, next;
-        
+
         current = line_start;
         for (;;)
         {
@@ -617,44 +676,325 @@ L01:
             line_start = current;
         }
     }
+
+    BOOL get_status_rev_special(SSTATUS_REVISE_SPECIAL* rev, SSTATUS_REVISE_SPECIAL* rev_out, ULONG ms_file)
+    {
+        while (rev->MSFile)
+        {
+            if (rev->MSFile == ms_file)
+            {
+                if(rev_out)
+                {
+                    memcpy(rev_out, rev, sizeof(*rev_out));
+                }
+                return TRUE;
+            }
+            ++rev;
+        }
+        if(rev_out)
+        {
+            memset(rev_out, 0, sizeof(*rev_out));
+            rev_out->MSFile = ms_file;
+            for(int i = 0; i < countof(rev_out->entry); ++i)
+            {
+                rev_out->entry[i] = 100;
+            }
+        }
+        return FALSE;
+    }
+
+    //NoInline
+    INT calc_specific_status(int type, int revise, int value, SSTATUS_REVISE_SPECIAL* revise_special)
+    {
+        int difficulty = get_difficulty();
+        if (type == STATUS_TYPE_RESIST)
+        {
+            if (difficulty == DIFFICULTY_PS_NIGHTMARE)
+            {
+                return value | (revise_special->N_RESIST & 0xFBFFFFFF);
+            }
+            else if (difficulty == DIFFICULTY_PS_EASY)
+            {
+                return value & ~(revise_special->E_RESIST & 0xFBFFFFFF);
+            }
+            else
+            {
+                return value;
+            }
+        }
+        if (revise == 0)
+        {
+            return value;
+        }
+        int rate = 100 - 5 * revise;
+        int result = value;
+        if (rate < 10)
+        {
+            rate = 10;
+        }
+        SSTATUS_REVISE_DIFFICULTY *revise_dif = t_btrev1;
+        if (type < STATUS_TYPE_MOV)
+        { 
+            if (rate > 100)
+            {
+                USHORT revise1 = revise_dif[difficulty].entry[type];
+                USHORT revise2 = revise_special->entry[type];
+                // bug?
+                if (type == STATUS_TYPE_SPD && !bFixEnemyStatusBug)
+                {
+                    revise1 = revise2;
+                }
+                rate = (rate - 100) * revise1 / 100 + 100; 
+
+                if (rate > 100)
+                {
+                    rate = (rate - 100) * revise2 / 100 + 100;
+                }
+            }
+            if (rate < 0)
+            {
+                rate = 0;
+            }
+            result = value * rate / 100;
+        }
+        else if (type == STATUS_TYPE_MOV)
+        {
+            for(;;)
+            {
+                INT AI;
+                if (difficulty == DIFFICULTY_PS_NIGHTMARE)
+                {
+                    AI = revise_special->N_AI;
+                }
+                else if (difficulty == DIFFICULTY_PS_EASY)
+                {
+                    AI = revise_special->E_AI;
+                }
+                else
+                {
+                    break;
+                }
+
+                if (FLAG_ON(AI, BTREV_AI_INC_MOV))
+                {
+                    result = value + 2;
+                }
+                else if (FLAG_ON(AI, BTREV_AI_DEC_MOV) && value != 0)
+                {
+                    result = (value + 1) >> 1;
+                }
+                break;
+            }
+        }
+
+        if (value != 0 && result == 0)
+        {
+            result = 1;
+        }
+        return result;
+    }
+
+    //NoInline
+    VOID change_ai_probability(ED6_AI_INFO* ai_info, int count, int type)
+    {
+        int result;
+        for (; count; --count, ++ai_info)
+        {
+            result = ai_info->Probability;
+            if (result == 0)
+            {
+                continue;
+            }
+            if (type == BTREV_AI_PROBABILITY_INC)
+            {
+                if (result >= 75)
+                {
+                    continue;
+                }
+                result += result >> 1;
+                if (result > 75)
+                {
+                    result = 75;
+                }
+                ai_info->Probability = (ubyte)result;
+            }
+            else if (type == BTREV_AI_PROBABILITY_DEC)
+            {
+                result >>= 1;
+                if (result == 0)
+                {
+                    result = 1;
+                }
+                ai_info->Probability = (ubyte)result;
+            }
+        }
+    }
+
+    VOID ed6SetEnemyFinalStatusPsp(ED6_CHARACTER_BATTLE_INF* lpBattleInf)
+    {
+        int difficulty = get_difficulty();
+        int revise = STATUS_REVISE[difficulty];
+        ED6_STATUS* pStatusSum = &lpBattleInf->StatusSum;
+
+        if (revise == 0)
+        {
+            return;
+        }
+        SSTATUS_REVISE_SPECIAL revise_special;
+        get_status_rev_special(t_btrev2, &revise_special, lpBattleInf->MSFileIndex.file);
+        if (FLAG_ON(revise_special.N_RESIST, 0x4000000) && difficulty == DIFFICULTY_PS_NIGHTMARE)
+        {
+            SET_FLAG(lpBattleInf->HitFlag, CHR_FLAG_ResistATDelay);
+        }
+        if (FLAG_ON(revise_special.E_RESIST, 0x4000000) && difficulty == DIFFICULTY_PS_EASY)
+        {
+            CLEAR_FLAG(lpBattleInf->HitFlag, CHR_FLAG_ResistATDelay);
+        }
+        pStatusSum->HPMax       = (TYPE_OF(pStatusSum->HPMax))calc_specific_status(STATUS_TYPE_HP, revise, pStatusSum->HPMax, &revise_special);
+        pStatusSum->HP          = pStatusSum->HPMax;
+        pStatusSum->STR         = (TYPE_OF(pStatusSum->STR))calc_specific_status(STATUS_TYPE_STR, revise, pStatusSum->STR, &revise_special);
+        pStatusSum->DEF         = (TYPE_OF(pStatusSum->DEF))calc_specific_status(STATUS_TYPE_DEF, revise, pStatusSum->DEF, &revise_special);
+        pStatusSum->ATS         = (TYPE_OF(pStatusSum->ATS))calc_specific_status(STATUS_TYPE_ATS, revise, pStatusSum->ATS, &revise_special);
+        pStatusSum->ADF         = (TYPE_OF(pStatusSum->ADF))calc_specific_status(STATUS_TYPE_ADF, revise, pStatusSum->ADF, &revise_special);
+        pStatusSum->SPD         = (TYPE_OF(pStatusSum->SPD))calc_specific_status(STATUS_TYPE_SPD, revise, pStatusSum->SPD, &revise_special);
+        pStatusSum->MOV         = (TYPE_OF(pStatusSum->MOV))calc_specific_status(STATUS_TYPE_MOV, revise, pStatusSum->MOV, &revise_special);
+        lpBattleInf->Resistance = calc_specific_status(STATUS_TYPE_RESIST, revise, lpBattleInf->Resistance, &revise_special);
+        // flag not set yet
+        /*if (FLAG_OFF(lpBattleInf->RoleFlag, CHR_FLAG_ENEMY))
+        {
+            return;
+        }*/
+        INT revise_ai = 0;
+        if (difficulty == DIFFICULTY_PS_NIGHTMARE)
+        {
+            revise_ai = revise_special.N_AI;
+        }
+        else if (difficulty == DIFFICULTY_PS_EASY)
+        {
+            revise_ai = revise_special.E_AI;
+        }
+        if (revise_ai == 0)
+        {
+            return;
+        }
+
+        // change AIType
+        if (lpBattleInf->AIType < 3)
+        {
+            if (FLAG_ON(revise_ai, BTREV_AI_SET_0))
+            {
+                lpBattleInf->AIType = 0;
+            }
+            if (FLAG_ON(revise_ai, BTREV_AI_SET_1))
+            {
+                lpBattleInf->AIType = 1;
+            }
+            if (FLAG_ON(revise_ai, BTREV_AI_SET_2))
+            {
+                lpBattleInf->AIType = 2;
+            }
+        }
+
+        // change ai probability
+        if (FLAG_ON(revise_ai, BTREV_AI_INC_ARTS))
+        {
+            change_ai_probability(lpBattleInf->Arts, countof(lpBattleInf->Arts), BTREV_AI_PROBABILITY_INC);
+        }
+        if (FLAG_ON(revise_ai, BTREV_AI_DEC_ARTS))
+        {
+            change_ai_probability(lpBattleInf->Arts, countof(lpBattleInf->Arts), BTREV_AI_PROBABILITY_DEC);
+        }
+        if (FLAG_ON(revise_ai, BTREV_AI_INC_CRAFT))
+        {
+            change_ai_probability(lpBattleInf->Craft, countof(lpBattleInf->Craft), BTREV_AI_PROBABILITY_INC);
+        }
+        if (FLAG_ON(revise_ai, BTREV_AI_DEC_CRAFT))
+        {
+            change_ai_probability(lpBattleInf->Craft, countof(lpBattleInf->Craft), BTREV_AI_PROBABILITY_DEC);
+        }
+        if (FLAG_ON(revise_ai, BTREV_AI_INC_SCRAFT))
+        {
+            change_ai_probability(lpBattleInf->SCraft, countof(lpBattleInf->SCraft), BTREV_AI_PROBABILITY_INC);
+        }
+        if (FLAG_ON(revise_ai, BTREV_AI_DEC_SCRAFT))
+        {
+            change_ai_probability(lpBattleInf->SCraft, countof(lpBattleInf->SCraft), BTREV_AI_PROBABILITY_DEC);
+        }
+
+        // summon number
+        if (FLAG_ON(revise_ai, BTREV_AI_INC_SUMMON | BTREV_AI_DEC_SUMMON))
+        {
+            ED6_CRAFT_INFO* craft;
+            FOR_EACH_ARRAY(craft, lpBattleInf->CraftInf)
+            {
+                if (craft->AnimationType == 0x134 || craft->AnimationType == 0x138)
+                {
+                    if (FLAG_ON(revise_ai, BTREV_AI_INC_SUMMON))
+                    {
+                        if (craft->Effect2Parameter != 0)
+                        {
+                            craft->Effect2Parameter = 0xFF;
+                        }
+                    }
+                    else if (craft->Effect2Parameter > 1)
+                    {
+                        craft->Effect2Parameter = 1;
+                    }
+                }
+            }
+        }
+    }
+/*
+    VOID print_status_rev_special(SSTATUS_REVISE_SPECIAL* p)
+    {
+        for(;;)
+        {
+            WriteLogA("{ %#x,\t%3d,\t%3d,\t%3d,\t%3d,\t%3d,\t%3d,\t%#10x,\t%#10x,\t%#10x,\t%#10x, },\r\n", 
+                p->MSFile, p->HP, p->STR, p->DEF, p->ATS, p->ADF, p->SPD,
+                p->N_RESIST, p->E_RESIST, p->N_AI, p->E_AI);
+            if (p->MSFile == 0)
+            {
+                break;
+            }
+            ++p;
+        }
+    }
+
+    bool THISCALL CBattle::LoadStatusData(ULONG MSFile, ULONG ChrPosition, ULONG a3)
+    {
+        static BOOL done = FALSE;
+        if (!done)
+        {
+            done = TRUE;
+            dump_status_rev_special(ChrPosition);
+        }
+        return (this->*StubLoadStatusData)(MSFile, ChrPosition, a3);      
+    }
+
+    VOID THISCALL CBattle::dump_status_rev_special(ULONG ChrPosition)
+    {
+        SSTATUS_REVISE_SPECIAL* p = t_btrev2;
+        ED6_CHARACTER_BATTLE_INF* lpBattleInf = getChrBattleInf() + ChrPosition;
+        for(;;)
+        {
+            WriteLogA("{ %#x,\t%3d,\t%3d,\t%3d,\t%3d,\t%3d,\t%3d,\t%#10x,\t%#10x,\t%#10x,\t%#10x, },", 
+                p->MSFile, p->HP, p->STR, p->DEF, p->ATS, p->ADF, p->SPD,
+                p->N_RESIST, p->E_RESIST, p->N_AI, p->E_AI);
+            if (p->MSFile == 0)
+            {
+                break;
+            }
+            LoadStatusData(p->MSFile, ChrPosition);
+            WriteLogA(" // %s\r\n", lpBattleInf->ChrName);
+            ++p;
+        }
+    }*/
 }
 
 namespace NED62
 {
-    pSprintf    sprintf                     = (pSprintf)0x53A93F;
-    pGetAddr    getItemInf                  = (pGetAddr)0x4C63A0;
-
-    ULONG_PTR   lpfnDrawSimpleText          = 0x0048C3A0;
-    ULONG_PTR   lpfnFtol                    = 0x0053A8DC;
-    ULONG_PTR   lpfnSetTextSize             = 0x48A7A0;
-    ULONG_PTR   lpfnDrawBattleIcon          = 0x48CE60;
-
-    ULONG_PTR   addrDisplaySkipCondition0   = 0x004412B7; // patch at
-    //ULONG_PTR addrDisplaySkipCondition1   = addrDisplaySkipCondition0 + 5; // ret1
-    ULONG_PTR   addrDisplaySkipCondition1   = 0x004412BC;
-    ULONG_PTR   addrDisplaySkipCondition2   = 0x00441350; // ret2
-
-    ULONG_PTR   lpcStatusLine               = 0x55C1DC;
-    ULONG_PTR   lpfnEnumCondition           = 0x418610;
-    ULONG_PTR   addrConditionIconPointBegin = 0x558E9C;
-    ULONG_PTR   addrConditionIconPointEnd   = 0x558F9C;
-    PULONG_PTR  addrBattleTexture          = (PULONG_PTR)0x63ED14;
-
-    ULONG_PTR   addrDisplayStatusPatch0     = 0x4418D0;
-    //ULONG_PTR addrDisplayStatusPatch1     = addrDisplayStatusPatch0 + 5;
-    ULONG_PTR   addrDisplayStatusPatch1     = 0x04418D5;
-    ULONG_PTR   addrDisplayStatusPatch2     = 0x0048C410; // call
-
-    ULONG_PTR   addrDisplayBattleIcoEx0     = 0x0048CEAA;
-    DWORD       dwYStart                    = 0x110;
-
-    ULONG_PTR   addrSoldierNo0              = 0x60EF38;
-    ULONG_PTR   addrChangeEnemyStatusPatch0 = 0x00443592;
-    //ULONG_PTR addrChangeEnemyStatusPatch1 = addrChangeEnemyStatusPatch0 + 5;
-    ULONG_PTR   addrChangeEnemyStatusPatch1 = 0x00443597;
-    ULONG_PTR   addrChangeEnemyStatusPatch2 = 0x004CE170; // call
-
-    PSIZE       resolution                  = (PSIZE)0x005643F8; // 分辨率
+    using namespace NED6123;
+    using NED6123::sprintf;
 
     #define _ED62_NS_
     #include "ed6_ns_common.h"
@@ -687,6 +1027,7 @@ L01:
         }
     }
 
+    NoInline
     void __cdecl ed6ShowConditionAtOld(ULONG AT, float x, float y, float width, float height, ULONG a6, ULONG a7, ULONG color)
     {
         ASM_DUMMY_AUTO();
@@ -726,44 +1067,105 @@ L01:
         ed6ShowConditionAtNew(AT, x, y - 8.f * resolution->cy / 480.f, width, height, a6, a7, color);
     }
 
+    void ed6SetEnemyFinalStatusPsp(ED6_CHARACTER_BATTLE_INF* lpBattleInf)
+    {
+#define CALC_STATUS(_status, _rate) \
+        result = pStatusSum->_status * rate_final._rate / 100; \
+        if (pStatusSum->_status > 0 && result == 0) \
+        { \
+            result = 1; \
+        } \
+        pStatusSum->_status = (TYPE_OF(pStatusSum->_status))result;
+//#end def
+
+        int difficulty = get_difficulty();
+        int revise = STATUS_REVISE[difficulty];
+        ED6_STATUS* pStatusSum = &lpBattleInf->StatusSum;
+      
+        //if (battle_index == 0x7A0)
+        if (lpBattleInf->MSFileIndex.file == 0x3001A5 || lpBattleInf->MSFileIndex.file == 0x3001AA)
+        {
+            switch (difficulty)
+            {
+            case DIFFICULTY_PS_NIGHTMARE:
+                revise += 5;
+                break;
+            case DIFFICULTY_PS_HARD:
+                revise += 2;
+                break;
+            case DIFFICULTY_PS_EASY:
+                revise += 3;
+                break;
+            }
+        }
+        //else if (battle_index == 0x394 && difficulty != DIFFICULTY_PS_NORMAL)
+        else if (lpBattleInf->MSFileIndex.file == 0x3002A7 && difficulty != DIFFICULTY_PS_NORMAL)
+        {
+            revise += 2;
+        }
+
+        if (revise == 0)
+        {
+            return;
+        }
+        int rate = 100 - 5 * revise;
+        if (rate < 10)
+        {
+            rate = 10;
+        }
+        SSTATUS_REVISE_DIFFICULTY   revise_dif;
+        SSTATUS_RATE_MINI           rate_final;
+
+        if (rate > 100)
+        { 
+            if (difficulty == DIFFICULTY_PS_NIGHTMARE)
+            {
+                revise_dif = {  50, 185,  40, 185,  40, 185 };
+            } 
+            else
+            {
+                revise_dif = {  50, 185,  80, 185,  80, 185 };
+            }
+            for (int i = 0; i < sizeof(revise_dif) / sizeof(revise_dif.entry[0]); ++i)
+            {
+                rate_final.entry[i] = (rate - 100) * revise_dif.entry[i] / 100 + 100;
+            }
+        }
+        else
+        {
+            rate_final = { (rate - 100) * 50 / 100 + 100, rate, rate, rate, rate, rate };
+        }
+        int result;
+        CALC_STATUS(HPMax, HP);
+        pStatusSum->HP = (TYPE_OF(pStatusSum->HP))result;
+        CALC_STATUS(STR, STR);
+        CALC_STATUS(DEF, DEF);
+        CALC_STATUS(ATS, ATS);
+        CALC_STATUS(ADF, ADF);
+        CALC_STATUS(SPD, SPD);
+        result = pStatusSum->MOV * rate / 100;
+        if (difficulty == DIFFICULTY_PS_NIGHTMARE && result != 0)
+        {
+            ++result;
+        }
+        else if (difficulty == DIFFICULTY_PS_EASY && (UINT)result > 1)
+        {
+            --result;
+        }
+        if (pStatusSum->MOV != 0 && result == 0)
+        {
+            result = 1;
+        }
+        pStatusSum->MOV = (TYPE_OF(pStatusSum->MOV))result;
+#undef  CALC_STATUS
+    }
+
 }
 
 namespace NED61
 {
-    pSprintf    sprintf                     = (pSprintf)0x004FC9FF;
-    pGetAddr    getItemInf                  = (pGetAddr)0x4A84F0;
-
-    ULONG_PTR   lpfnDrawSimpleText          = 0x00474DC0;
-    ULONG_PTR   lpfnFtol                    = 0x004FC99C;
-    ULONG_PTR   lpfnSetTextSize             = 0x00473260;
-    ULONG_PTR   lpfnDrawBattleIcon          = 0x00475880;
-
-    ULONG_PTR   addrDisplaySkipCondition0   = 0x0043411C; // patch at
-    //ULONG_PTR addrDisplaySkipCondition1   = addrDisplaySkipCondition0 + 5; // ret1
-    ULONG_PTR   addrDisplaySkipCondition1   = 0x00434121;
-    ULONG_PTR   addrDisplaySkipCondition2   = 0x004341B8; // ret2
-
-    ULONG_PTR   lpcStatusLine               = 0x51A294;
-    ULONG_PTR   lpfnEnumCondition           = 0x413220;
-    ULONG_PTR   addrConditionIconPointBegin = 0x517BCC;
-    ULONG_PTR   addrConditionIconPointEnd   = 0x517CBC;
-    PULONG_PTR  addrBattleTexture          = (PULONG_PTR)0x5CB918;
-
-    ULONG_PTR   addrDisplayStatusPatch0     = 0x434737;
-    //ULONG_PTR addrDisplayStatusPatch1     = addrDisplayStatusPatch0 + 5;
-    ULONG_PTR   addrDisplayStatusPatch1     = 0x0043473C;
-    ULONG_PTR   addrDisplayStatusPatch2     = 0x00474E30; // call
-
-    ULONG_PTR   addrDisplayBattleIcoEx0     = 0x004758CA;
-    DWORD       dwYStart                    = 0x112;
-
-    ULONG_PTR   addrSoldierNo0              = 0x5A58D0;
-    ULONG_PTR   addrChangeEnemyStatusPatch0 = 0x00435036;
-    //ULONG_PTR addrChangeEnemyStatusPatch1 = addrChangeEnemyStatusPatch0 + 5;
-    ULONG_PTR   addrChangeEnemyStatusPatch1 = 0x0043503B;
-    ULONG_PTR   addrChangeEnemyStatusPatch2 = 0x004AE7E0; // call
-
-    PSIZE       resolution                  = (PSIZE)0x005204DC; // 分辨率
+    using namespace NED6123;
+    using NED6123::sprintf;
 
     #define _ED61_NS_
     #include "ed6_ns_common.h"
@@ -798,6 +1200,7 @@ L01:
         }
     }
 
+    NoInline
     void __cdecl ed6ShowConditionAtOld(ULONG AT, float x, float y, float width, float height, ULONG a6, ULONG a7, ULONG color)
     {
         ASM_DUMMY_AUTO();
@@ -825,6 +1228,79 @@ L01:
         // x-=16 y+=16
         y = (y - 16.f) + 16.f * resolution->cy / 480.f;
         ed6ShowConditionAtOld(AT, x, y, width, height, a6, a7, nConditionATColor);
+    }
+
+    void ed6SetEnemyFinalStatusPsp(ED6_CHARACTER_BATTLE_INF* lpBattleInf)
+    {
+#define CALC_STATUS(_status, _rate) \
+        result = pStatusSum->_status * rate_final._rate / 100; \
+        if (pStatusSum->_status > 0 && result == 0) \
+        { \
+            result = 1; \
+        } \
+        pStatusSum->_status = (TYPE_OF(pStatusSum->_status))result;
+//#end def
+
+        int difficulty = get_difficulty();
+        int revise = STATUS_REVISE[difficulty];
+        ED6_STATUS* pStatusSum = &lpBattleInf->StatusSum;
+      
+        if (revise == 0)
+        {
+            return;
+        }
+        int rate = 100 - 5 * revise;
+        if (rate < 10)
+        {
+            rate = 10;
+        }
+        SSTATUS_REVISE_DIFFICULTY   revise_dif;
+        SSTATUS_RATE_MINI           rate_final;
+
+        if (rate > 100)
+        {
+            if (lpBattleInf->MSFileIndex.file == 0x1001ED)
+            {
+                return;
+            }
+            if (difficulty == DIFFICULTY_PS_NIGHTMARE)
+            {
+                revise_dif = { 100, 100,  50, 100,  50, 100 };
+            } 
+            else
+            {
+                revise_dif = { 100, 100, 100, 100, 100, 100 };
+            }
+            for (int i = 0; i < sizeof(revise_dif) / sizeof(revise_dif.entry[0]); ++i)
+            {
+                rate_final.entry[i] = (rate - 100) * revise_dif.entry[i] / 100 + 100;
+            }
+        }
+        else
+        {
+            rate_final = { rate, rate, rate, rate, rate, rate };
+        }
+        int result;
+        CALC_STATUS(HPMax, HP);
+        pStatusSum->HP = (TYPE_OF(pStatusSum->HP))result;
+        CALC_STATUS(STR, STR);
+        CALC_STATUS(DEF, DEF);
+        CALC_STATUS(ATS, ATS);
+        CALC_STATUS(ADF, ADF);
+        CALC_STATUS(SPD, SPD);
+
+        if (rate > 100)
+        {
+            if (difficulty == DIFFICULTY_PS_NIGHTMARE)
+            {
+                pStatusSum->ADF += pStatusSum->Level >> 1;
+            }
+            else if (difficulty == DIFFICULTY_PS_HARD)
+            {
+                pStatusSum->ADF += pStatusSum->Level >> 2;
+            }
+        }
+#undef  CALC_STATUS
     }
 
 }
@@ -919,7 +1395,7 @@ void ConfigInit()
 
     static CONFIG_ENTRY Config[] =
     {
-        { (INT*)&nDifficulty,                   'i',    L"Battle",  L"Difficulty",              0,      },
+        { (INT*)&nDifficulty,                   'i',    L"Battle",  L"Difficulty",              DIFFICULTY_DEFAULT,      },
         { (INT*)&sRate.HP_a,                    'i',    L"Battle",  L"HP_a",                    1000,   },
         { (INT*)&sRate.STR_a,                   'i',    L"Battle",  L"STR_a",                   1000,   },
         { (INT*)&sRate.DEF_a,                   'i',    L"Battle",  L"DEF_a",                   1000,   },
@@ -951,6 +1427,9 @@ void ConfigInit()
         { (INT*)&nConditionATColor,             'i',    L"Battle",  L"ConditionATColor",        0,      },
 
         { (BOOL*)&bShowCraftName,               'b',    L"Battle",  L"ShowCraftName",           TRUE,   },
+        { (BOOL*)&bForceShowMonsInf,            'b',    L"Battle",  L"ForceShowMonsInf",        FALSE,  },
+        { (BOOL*)&bUnlimitedSummon,             'b',    L"Battle",  L"UnlimitedSummon",         FALSE,  },
+        { (BOOL*)&bFixEnemyStatusBug,           'b',    L"Battle",  L"FixEnemyStatusBug",       FALSE,  },
     };
 
     CONFIG_ENTRY *Entry;
@@ -969,9 +1448,25 @@ void ConfigInit()
         }
     }
 
-    if (nDifficulty != 0 && nDifficulty != 1)
+    // 0-6
+    if ((ULONG)nDifficulty > DIFFICULTY_INI_MAX)
     {
-        nDifficulty = 0;
+        nDifficulty = DIFFICULTY_DEFAULT;
+    }
+    --nDifficulty;
+    if (nDifficulty == DIFFICULTY_PC_ORIGINAL || nDifficulty == DIFFICULTY_PC_CUSTOM)
+    {
+        bPSP_MODE = FALSE;
+    }
+    else
+    {
+        bPSP_MODE = TRUE;
+    }
+
+    // sc psp 所有难度不限制分身次数
+    if(bPSP_MODE && FLAG_ON(g_GameVersion, ed62min))
+    {
+        bUnlimitedSummon = TRUE;
     }
 
     SaturateConvertEx(&nSepithUpLimit, nSepithUpLimit, 9999, 0);
@@ -987,9 +1482,9 @@ void ConfigInit()
         nShowAT = SHOW_AT_DEFAULT;
     }
 
-    if (nShowConditionAT != SHOW_CONDITION_AT_NONE && 
-        nShowConditionAT != SHOW_CONDITION_AT_HIDE99 && 
-        nShowConditionAT != SHOW_CONDITION_AT_MAX99 && 
+    if (nShowConditionAT != SHOW_CONDITION_AT_NONE &&
+        nShowConditionAT != SHOW_CONDITION_AT_HIDE99 &&
+        nShowConditionAT != SHOW_CONDITION_AT_MAX99 &&
         nShowConditionAT != SHOW_CONDITION_AT_ORIGINAL)
     {
         nShowConditionAT = SHOW_CONDITION_AT_DEFAULT;
@@ -1021,6 +1516,48 @@ void ConfigInit()
 void patch_ed63cn7(PVOID hModule)
 {
     using namespace NED63;
+
+    NED63::sprintf              = (pSprintf)0x59234F;
+    getItemInf                  = (pGetAddr)0x4A0270;
+
+    lpfnDrawSimpleText          = 0x0052B170;
+    lpfnFtol                    = 0x5922F0;
+    lpfnSetTextSize             = 0x529530;
+    lpfnDrawBattleIcon          = 0x52BCB0;
+
+    addrDisplaySkipCondition0   = 0x0044A6F9; // patch at
+    addrDisplaySkipCondition1   = addrDisplaySkipCondition0 + 5; // ret1
+    addrDisplaySkipCondition2   = 0x0044A792; // ret2
+
+    lpcStatusLine               = 0x5B7410;
+    lpfnEnumCondition           = 0x41B070;
+    addrConditionIconPointBegin = 0x5B310C;
+    addrConditionIconPointEnd   = 0x5B3214;
+    addrBattleTexture           = (PULONG_PTR)0x6A27FC;
+
+    addrDisplayStatusPatch0     = 0x44AC31;
+    addrDisplayStatusPatch1     = addrDisplayStatusPatch0 + 5;
+    addrDisplayStatusPatch2     = 0x52B1E0; // call
+
+    addrDisplayBattleIcoEx0     = 0x0052BCFA;
+    dwYStart                    = 0x110;
+
+    addrDisplayItemDropPatch0   = 0x0044A68E;
+    addrDisplayItemDropPatch1   = addrDisplayItemDropPatch0 + 5;
+
+    addrSoldierNo0              = 0x672828;
+    addrLPDir0                  = (PULONG_PTR)0x2CAD950;
+    addrBattleNowIndex          = (PULONG_PTR)0x721A38;
+    getItemDrop                 = (pGetAddr)0x004A0E60;
+    getItemName                 = (pGetAddr)0x004A0370;
+
+    addrChangeEnemyStatusPatch0 = 0x0044CDAF;
+    addrChangeEnemyStatusPatch1 = addrChangeEnemyStatusPatch0 + 5;
+    addrChangeEnemyStatusPatch2 = 0x004A4360; // call
+
+    addrCheckQuartzPatch        = 0x004A8840;
+
+    resolution                  = (PSIZE)0x005BDFF0; // 分辨率
 
     if (*(unsigned char*)addrChangeEnemyStatusPatch0 != 0xE8)   return; //0xE8 call 0xE9 jump; 防止重复补丁
 
@@ -1092,6 +1629,7 @@ void patch_ed63cn7(PVOID hModule)
         PATCH_FUNCTION(JUMP, NOT_RVA, 0x0048D310,   ed6ShowConditionAtNew, 5, ed6ShowConditionAtOld),
 
         INLINE_HOOK_JUMP(0x0044A5E0,    METHOD_PTR(&CBattleInfoBox::DrawMonsterInfo),   CBattleInfoBox::StubDrawMonsterInfo),
+        //INLINE_HOOK_JUMP(0x0041D950,    METHOD_PTR(&CBattle::LoadStatusData), CBattle::StubLoadStatusData),
     };
     Nt_PatchMemory(p, countof(p), f, countof(f), hModule);
 
@@ -1140,6 +1678,8 @@ void patch_ed63jp7(PVOID hModule)
     addrChangeEnemyStatusPatch0 = 0x0044C72F;
     addrChangeEnemyStatusPatch1 = addrChangeEnemyStatusPatch0 + 5;
     addrChangeEnemyStatusPatch2 = 0x004A36A0; // call
+
+    addrCheckQuartzPatch        = 0x004A6EF0;
 
     resolution                  = (PSIZE)0x005B86C0; // 分辨率
     CodePage                    = 932;
@@ -1253,6 +1793,8 @@ void patch_ed63jp1002(PVOID hModule)
     addrChangeEnemyStatusPatch1 = addrChangeEnemyStatusPatch0 + 5;
     addrChangeEnemyStatusPatch2 = 0x004A35B0; // call
 
+    addrCheckQuartzPatch        = 0x004A6DF0;
+
     resolution                  = (PSIZE)0x005B8644; // 分辨率
 
     unsigned char p0044A548[9] = { 0x6A, 0x01, 0x8B, 0xCE, 0xE8, 0x0F, 0xC8, 0x0D, 0x00 };
@@ -1357,6 +1899,40 @@ void patch_ed62cn7(PVOID hModule)
 {
     using namespace NED62;
 
+    NED62::sprintf              = (pSprintf)0x53A93F;
+    getItemInf                  = (pGetAddr)0x4C63A0;
+
+    lpfnDrawSimpleText          = 0x0048C3A0;
+    lpfnFtol                    = 0x0053A8DC;
+    lpfnSetTextSize             = 0x48A7A0;
+    lpfnDrawBattleIcon          = 0x48CE60;
+
+    addrDisplaySkipCondition0   = 0x004412B7; // patch at
+    addrDisplaySkipCondition1   = addrDisplaySkipCondition0 + 5; // ret1
+    addrDisplaySkipCondition2   = 0x00441350; // ret2
+
+    lpcStatusLine               = 0x55C1DC;
+    lpfnEnumCondition           = 0x418610;
+    addrConditionIconPointBegin = 0x558E9C;
+    addrConditionIconPointEnd   = 0x558F9C;
+    addrBattleTexture          = (PULONG_PTR)0x63ED14;
+
+    addrDisplayStatusPatch0     = 0x4418D0;
+    addrDisplayStatusPatch1     = addrDisplayStatusPatch0 + 5;
+    addrDisplayStatusPatch2     = 0x0048C410; // call
+
+    addrDisplayBattleIcoEx0     = 0x0048CEAA;
+    dwYStart                    = 0x110;
+
+    addrSoldierNo0              = 0x60EF38;
+    addrChangeEnemyStatusPatch0 = 0x00443592;
+    addrChangeEnemyStatusPatch1 = addrChangeEnemyStatusPatch0 + 5;
+    addrChangeEnemyStatusPatch2 = 0x004CE170; // call
+
+    addrCheckQuartzPatch        = 0x004CE300;
+
+    resolution                  = (PSIZE)0x005643F8; // 分辨率
+
     if (*(unsigned char*)addrChangeEnemyStatusPatch0 != 0xE8)   return; //0xE8 call 0xE9 jump; 防止重复补丁
 
     if (nShowAT != 0)   // 显AT
@@ -1457,6 +2033,8 @@ void patch_ed62jp7(PVOID hModule)
     addrChangeEnemyStatusPatch1 = addrChangeEnemyStatusPatch0 + 5;
     addrChangeEnemyStatusPatch2 = 0x004CCF00; // call
 
+    addrCheckQuartzPatch        = 0x004CD090;
+
     resolution                  = (PSIZE)0x00563CB0; // 分辨率
     CodePage                    = 932;
 
@@ -1549,6 +2127,8 @@ void patch_ed62jp1020(PVOID hModule)
     addrChangeEnemyStatusPatch0 = 0x00443112;
     addrChangeEnemyStatusPatch1 = addrChangeEnemyStatusPatch0 + 5;
     addrChangeEnemyStatusPatch2 = 0x004CCB30; // call
+
+    addrCheckQuartzPatch        = 0x004CCCC0;
 
     resolution                  = (PSIZE)0x00562BF4; // 分辨率
 
@@ -1672,6 +2252,40 @@ void patch_ed61cn7(PVOID hModule)
 {
     using namespace NED61;
 
+    NED61::sprintf              = (pSprintf)0x004FC9FF;
+    getItemInf                  = (pGetAddr)0x4A84F0;
+
+    lpfnDrawSimpleText          = 0x00474DC0;
+    lpfnFtol                    = 0x004FC99C;
+    lpfnSetTextSize             = 0x00473260;
+    lpfnDrawBattleIcon          = 0x00475880;
+
+    addrDisplaySkipCondition0   = 0x0043411C; // patch at
+    addrDisplaySkipCondition1   = addrDisplaySkipCondition0 + 5; // ret1
+    addrDisplaySkipCondition2   = 0x004341B8; // ret2
+
+    lpcStatusLine               = 0x51A294;
+    lpfnEnumCondition           = 0x413220;
+    addrConditionIconPointBegin = 0x517BCC;
+    addrConditionIconPointEnd   = 0x517CBC;
+    addrBattleTexture          = (PULONG_PTR)0x5CB918;
+
+    addrDisplayStatusPatch0     = 0x434737;
+    addrDisplayStatusPatch1     = addrDisplayStatusPatch0 + 5;
+    addrDisplayStatusPatch2     = 0x00474E30; // call
+
+    addrDisplayBattleIcoEx0     = 0x004758CA;
+    dwYStart                    = 0x112;
+
+    addrSoldierNo0              = 0x5A58D0;
+    addrChangeEnemyStatusPatch0 = 0x00435036;
+    addrChangeEnemyStatusPatch1 = addrChangeEnemyStatusPatch0 + 5;
+    addrChangeEnemyStatusPatch2 = 0x004AE7E0; // call
+
+    addrCheckQuartzPatch        = 0x004AE990;
+
+    resolution                  = (PSIZE)0x005204DC; // 分辨率
+
     if (*(unsigned char*)addrChangeEnemyStatusPatch0 != 0xE8)   return; //0xE8 call 0xE9 jump; 防止重复补丁
 
     if (nShowAT != 0)   // 显AT
@@ -1773,6 +2387,8 @@ void patch_ed61jp7(PVOID hModule)
     addrChangeEnemyStatusPatch1 = addrChangeEnemyStatusPatch0 + 5;
     addrChangeEnemyStatusPatch2 = 0x004AE440; // call
 
+    addrCheckQuartzPatch        = 0x004AE5F0;
+
     resolution                  = (PSIZE)0x00520F04; // 分辨率
     CodePage                    = 932;
 
@@ -1832,6 +2448,17 @@ void patch_ed61jp7(PVOID hModule)
     ChangeMainWindowProc(*(HWND*)0x1944244);
 }
 
+void patch_ed6123(PVOID hModule)
+{
+    using namespace NED6123;
+
+    MEMORY_FUNCTION_PATCH p[] =
+    {
+        INLINE_HOOK_JUMP(addrCheckQuartzPatch,  CheckQuartz, StubCheckQuartz),
+    };
+    Nt_PatchMemory(nullptr, 0, p, countof(p), hModule);
+}
+
 void Init()
 {
     GameVersion gameVersion = getGameVersion();
@@ -1847,6 +2474,7 @@ void Init()
 #if CONSOLE_DEBUG
     QueryPerformanceFrequency(&lFrequency);
 #endif
+    //NED63::print_status_rev_base(t_btrev2);
 
     switch (gameVersion)
     {
@@ -1877,4 +2505,6 @@ void Init()
             patch_ed61jp7(hModule);
             break;
     }
+
+    patch_ed6123(hModule);
 }
