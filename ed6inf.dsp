@@ -116,6 +116,10 @@ SOURCE=.\ed6inf.h
 
 SOURCE=.\ed6inf_data.h
 # End Source File
+# Begin Source File
+
+SOURCE=.\xxoo.hpp
+# End Source File
 # End Group
 # Begin Group "Resource Files"
 

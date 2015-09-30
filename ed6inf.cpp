@@ -211,11 +211,11 @@ BOOL Initialize(PVOID BaseAddress)
     AllocConsole();
 #endif
 
-    static BOOL bIsInit = False;
-    if (!bIsInit)
+    //static BOOL bIsInit = False;
+    if (!Hooked)
     {
         Init();
-        bIsInit = TRUE;
+        //bIsInit = TRUE;
     }
 
     return TRUE;

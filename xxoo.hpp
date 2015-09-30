@@ -66,12 +66,12 @@ EXTC IDirect3D8* STDCALL Arianrhod_Direct3DCreate8(UINT SDKVersion)
 
     WriteLog(L"%08X\n", _ReturnAddress());
 
-    static BOOL Hooked = FALSE;
+    //static BOOL Hooked = FALSE;
 
     if (!Hooked)
     {
         DllMain(&__ImageBase, DLL_PROCESS_ATTACH, 0);
-        Hooked = TRUE;
+        //Hooked = TRUE;
     }
 
     return Direct3DCreate8(SDKVersion);
@@ -120,12 +120,12 @@ Arianrhod_DirectInput8Create(
 
     WriteLog(L"%08X\n", _ReturnAddress());
 
-    static BOOL Hooked = FALSE;
+    //static BOOL Hooked = FALSE;
 
     if (!Hooked)
     {
         DllMain(&__ImageBase, DLL_PROCESS_ATTACH, 0);
-        Hooked = TRUE;
+        //Hooked = TRUE;
     }
 
     return DirectInput8Create(hinst, Version, riidltf, ppvOut, punkOuter);

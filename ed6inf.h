@@ -4,6 +4,8 @@
 #include "ed6inf_data.h"
 #include "misc_aki.h"
 
+BOOL Hooked = FALSE;
+
 #if CONSOLE_DEBUG
 LARGE_INTEGER lFrequency, lStopCounter, lStartCounter;
 #endif
@@ -2141,6 +2143,8 @@ void patch_ed62jp1020(PVOID hModule)
         0x54, 0x00, 0x61, 0xC3, 0xE8, 0xF7, 0xE9, 0xF7, 0xFF, 0xE8, 0x42, 0x3C, 0xF8, 0xFF, 0x84, 0xC0,
         0x74, 0xF2, 0xC3};
 
+    unsigned char p00419839[7]  = { 0xDB, 0x44, 0x24, 0x44, 0x8B, 0x43, 0x0C };
+
     if (*(unsigned char*)addrChangeEnemyStatusPatch0 != 0xE8)   return; //0xE8 call 0xE9 jump; 防止重复补丁
 
     if (*(UINT*)0x00562C04 == 0x59977089 && *(UINT*)0x004C6F01 == 0x562BEC) //日版 windows名称
@@ -2173,19 +2177,30 @@ void patch_ed62jp1020(PVOID hModule)
 
     }
 
+    if ((nShowConditionAT == SHOW_CONDITION_AT_HIDE99 || nShowConditionAT == SHOW_CONDITION_AT_MAX99) && resolution->cx >= 800)  // 状态AT 调整到一行
+    {
+        MEMORY_PATCH p[] =
+        {
+            PATCH_MEMORY(0, 4, 0x00419821 -0x00400000), // 状态AT 调整到一行
+        };
+        Nt_PatchMemory(p, countof(p), NULL, 0, hModule);
+    }
+
     if (*(UINT*)0x004413BC == 0x02CFE5DB) // 理之补丁 at调整为一列
     {
         if (nShowConditionAT != SHOW_CONDITION_AT_NONE)
         {
             __asm OR BYTE PTR DS:[0x2EDF77C],0x1;
         }
-        nShowConditionAT = SHOW_CONDITION_AT_MAX99;
-        nConditionATColor = CONDITION_AT_COLOR_ORIGINAL;
+
+        //nShowConditionAT = SHOW_CONDITION_AT_MAX99;
+        //nConditionATColor = CONDITION_AT_COLOR_ORIGINAL;
         MEMORY_PATCH p1[] =
         {
             //PATCH_MEMORY(p004339F9,   6, 0x0339F9),   // AT 显示减少
             PATCH_MEMORY(0x549330,  4, 0x00419846 -0x00400000), // 状态AT调整恢复
             PATCH_MEMORY(0x549330,  4, 0x00419853 -0x00400000), // 状态AT调整恢复
+            PATCH_MEMORY(p00419839, sizeof(p00419839), 0x00419839 -0x00400000), // 状态AT max99恢复
 
             PATCH_MEMORY(0x00077201,4, 0x004D0F1B -0x00400000), // CPUtest
             PATCH_MEMORY(p004CDEE2, sizeof(p004CDEE2), 0x004CDEE2 -0x00400000), // CPU手册
@@ -2200,15 +2215,6 @@ void patch_ed62jp1020(PVOID hModule)
 
         ChangeMainWindowProc(*(HWND*)0x2F2A35C);
         return;
-    }
-
-    if ((nShowConditionAT == SHOW_CONDITION_AT_HIDE99 || nShowConditionAT == SHOW_CONDITION_AT_MAX99) && resolution->cx >= 800)  // 状态AT 调整到一行
-    {
-        MEMORY_PATCH p[] =
-        {
-            PATCH_MEMORY(0, 4, 0x00419821 -0x00400000), // 状态AT 调整到一行
-        };
-        Nt_PatchMemory(p, countof(p), NULL, 0, hModule);
     }
 
     MEMORY_PATCH p[] =
@@ -2507,4 +2513,5 @@ void Init()
     }
 
     patch_ed6123(hModule);
+    Hooked = TRUE;
 }
