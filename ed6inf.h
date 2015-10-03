@@ -250,6 +250,335 @@ namespace NED6123
     }
 }
 
+namespace NED61
+{
+    using namespace NED6123;
+    using NED6123::sprintf;
+
+    #define _ED61_NS_
+    #include "ed6_ns_common.h"
+    #undef  _ED61_NS_
+
+    ASM void ed6DisplaySkipCondition()
+    {
+        __asm
+        {
+            cmp DWORD PTR DS:[ESI+0x4870],0x0;
+            je L01;
+            //push 0x004341B8;
+            jmp addrDisplaySkipCondition2;
+L01:
+            push 0x190;
+            //push 0x00434121;
+            jmp addrDisplaySkipCondition1;
+        }
+    }
+
+    ASM void ed6DisplayStatusPatch()
+    {
+        __asm
+        {
+            call addrDisplayStatusPatch2;
+            mov edx, ebx;
+            sub edx, 0x22A8;
+            push edx;
+            mov ecx, esi;
+            call CBattleInfoBox::ed6DisplayStatus;
+            jmp addrDisplayStatusPatch1;
+        }
+    }
+
+    NoInline
+    void __cdecl ed6ShowConditionAtOld(ULONG AT, float x, float y, float width, float height, ULONG a6, ULONG a7, ULONG color)
+    {
+        ASM_DUMMY_AUTO();
+    }
+    void __cdecl ed6ShowConditionAtNew(ULONG AT, float x, float y, float width, float height, ULONG a6, ULONG a7, ULONG color)
+    {
+        if (nShowConditionAT == SHOW_CONDITION_AT_HIDE99 || nShowConditionAT == SHOW_CONDITION_AT_MAX99)
+        {
+            if (AT > 99)
+            {
+                if (nShowConditionAT == SHOW_CONDITION_AT_HIDE99) return;
+                AT = 99;
+            }
+
+            if (AT < 10)
+            {
+                x -= (8.f * 2 - (16.f * resolution->cx / 640.f - 8.f * 1) / 2);
+            }
+            else
+            {
+                x -= (8.f * 1 - (16.f * resolution->cx / 640.f - 8.f * 2) / 2);
+            }
+        }
+
+        // x-=16 y+=16
+        y = (y - 16.f) + 16.f * resolution->cy / 480.f;
+        ed6ShowConditionAtOld(AT, x, y, width, height, a6, a7, nConditionATColor);
+    }
+
+    void ed6SetEnemyFinalStatusPsp(ED6_CHARACTER_BATTLE_INF* lpBattleInf)
+    {
+#define CALC_STATUS(_status, _rate) \
+        result = pStatusSum->_status * rate_final._rate / 100; \
+        if (pStatusSum->_status > 0 && result == 0) \
+        { \
+            result = 1; \
+        } \
+        pStatusSum->_status = (TYPE_OF(pStatusSum->_status))result;
+//#end def
+
+        int difficulty = get_difficulty();
+        int revise = STATUS_REVISE[difficulty];
+        ED6_STATUS* pStatusSum = &lpBattleInf->StatusSum;
+      
+        if (revise == 0)
+        {
+            return;
+        }
+        int rate = 100 - 5 * revise;
+        if (rate < 10)
+        {
+            rate = 10;
+        }
+        SSTATUS_REVISE_DIFFICULTY   revise_dif;
+        SSTATUS_RATE_MINI           rate_final;
+
+        if (rate > 100)
+        {
+            if (lpBattleInf->MSFileIndex.file == 0x1001ED)
+            {
+                return;
+            }
+            if (difficulty == DIFFICULTY_PS_NIGHTMARE)
+            {
+                revise_dif = { 100, 100,  50, 100,  50, 100 };
+            } 
+            else
+            {
+                revise_dif = { 100, 100, 100, 100, 100, 100 };
+            }
+            for (int i = 0; i < sizeof(revise_dif) / sizeof(revise_dif.entry[0]); ++i)
+            {
+                rate_final.entry[i] = (rate - 100) * revise_dif.entry[i] / 100 + 100;
+            }
+        }
+        else
+        {
+            rate_final = { rate, rate, rate, rate, rate, rate };
+        }
+        int result;
+        CALC_STATUS(HPMax, HP);
+        pStatusSum->HP = (TYPE_OF(pStatusSum->HP))result;
+        CALC_STATUS(STR, STR);
+        CALC_STATUS(DEF, DEF);
+        CALC_STATUS(ATS, ATS);
+        CALC_STATUS(ADF, ADF);
+        CALC_STATUS(SPD, SPD);
+
+        if (rate > 100)
+        {
+            if (difficulty == DIFFICULTY_PS_NIGHTMARE)
+            {
+                pStatusSum->ADF += pStatusSum->Level >> 1;
+            }
+            else if (difficulty == DIFFICULTY_PS_HARD)
+            {
+                pStatusSum->ADF += pStatusSum->Level >> 2;
+            }
+        }
+#undef  CALC_STATUS
+    }
+
+}
+
+namespace NED62
+{
+    using namespace NED6123;
+    using NED6123::sprintf;
+
+    namespace ITEM_ID
+    {
+        using namespace NED6123::ITEM_ID;
+        CONST USHORT NEKO_SUIT      = 0x10C;    // 268 Ã¨ßä·þ
+        CONST USHORT NEKO_SHOE      = 0x12B;    // 299 Ã¨×¦Ñ¥
+        CONST USHORT NEKO_BAND      = 0x13D;    // 317 Ã¨¶úÃ±
+        CONST USHORT NEKO_TAIL      = 0x13E;    // 318 Ã¨Î²
+
+        CONST USHORT DEX[5]         = { 0x26A, 0x26B, 0x26C, 0x2A0, 0x2A1 };
+        CONST USHORT AGL[5]         = { 0x26D, 0x26E, 0x26F, 0x2A2, 0x2A3 };
+
+        CONST USHORT DRIVE3         = 0x2CD;    // 717 ¿ÌÒ«Öé
+        CONST USHORT DRIVE[3]       = { 0x2C6, 0x2C7, 0x2CD };
+    }
+
+    #define _ED62_NS_
+    #include "ed6_ns_common.h"
+    #undef  _ED62_NS_
+
+    ASM void ed6DisplaySkipCondition()
+    {
+        __asm
+        {
+            cmp DWORD PTR DS:[ESI+0x4870],0;
+            je L01;
+            jmp addrDisplaySkipCondition2;
+L01:
+            push 0x190;
+            jmp addrDisplaySkipCondition1;
+        }
+    }
+
+    ASM void ed6DisplayStatusPatch()
+    {
+        __asm
+        {
+            call addrDisplayStatusPatch2;
+            mov edx, ebp;
+            sub edx, 0x2358;
+            push edx;
+            mov ecx, esi;
+            call CBattleInfoBox::ed6DisplayStatus;
+            jmp addrDisplayStatusPatch1;
+        }
+    }
+
+    NoInline
+    void __cdecl ed6ShowConditionAtOld(ULONG AT, float x, float y, float width, float height, ULONG a6, ULONG a7, ULONG color)
+    {
+        ASM_DUMMY_AUTO();
+    }
+    void __cdecl ed6ShowConditionAtNew(ULONG AT, float x, float y, float width, float height, ULONG a6, ULONG a7, ULONG color)
+    {
+        if (nShowConditionAT == SHOW_CONDITION_AT_HIDE99 || nShowConditionAT == SHOW_CONDITION_AT_MAX99)
+        {
+            if (AT > 99)
+            {
+                if (nShowConditionAT == SHOW_CONDITION_AT_HIDE99) return;
+                AT = 99;
+            }
+
+            if (AT < 10)
+            {
+                x -= (8.f * 2 - (16.f * resolution->cx / 640.f - 8.f * 1) / 2);
+                //x += -10.f;
+                //x += -6.8f;
+            }
+            else
+            {
+                x -= (8.f * 1 - (16.f * resolution->cx / 640.f - 8.f * 2) / 2);
+                //x += -6.f;
+                //x += -3.3f;
+            }
+        }
+
+        // x-=16 y+=16
+        y = (y - 16.f) + 16.f * resolution->cy / 480.f;
+
+        //ed6ShowConditionAtOld(AT, x, y, width * resolution->cx / 640.f, height * resolution->cy / 480.f, a6, a7, a8);
+        ed6ShowConditionAtOld(AT, x, y, width, height, a6, a7, nConditionATColor);
+    }
+    void __cdecl ed6ShowConditionAtNewLi(ULONG AT, float x, float y, float width, float height, ULONG a6, ULONG a7, ULONG color)
+    {
+        ed6ShowConditionAtNew(AT, x, y - 8.f * resolution->cy / 480.f, width, height, a6, a7, color);
+    }
+
+    void ed6SetEnemyFinalStatusPsp(ED6_CHARACTER_BATTLE_INF* lpBattleInf)
+    {
+#define CALC_STATUS(_status, _rate) \
+        result = pStatusSum->_status * rate_final._rate / 100; \
+        if (pStatusSum->_status > 0 && result == 0) \
+        { \
+            result = 1; \
+        } \
+        pStatusSum->_status = (TYPE_OF(pStatusSum->_status))result;
+//#end def
+
+        int difficulty = get_difficulty();
+        int revise = STATUS_REVISE[difficulty];
+        ED6_STATUS* pStatusSum = &lpBattleInf->StatusSum;
+      
+        //if (battle_index == 0x7A0)
+        if (lpBattleInf->MSFileIndex.file == 0x3001A5 || lpBattleInf->MSFileIndex.file == 0x3001AA)
+        {
+            switch (difficulty)
+            {
+            case DIFFICULTY_PS_NIGHTMARE:
+                revise += 5;
+                break;
+            case DIFFICULTY_PS_HARD:
+                revise += 2;
+                break;
+            case DIFFICULTY_PS_EASY:
+                revise += 3;
+                break;
+            }
+        }
+        //else if (battle_index == 0x394 && difficulty != DIFFICULTY_PS_NORMAL)
+        else if (lpBattleInf->MSFileIndex.file == 0x3002A7 && difficulty != DIFFICULTY_PS_NORMAL)
+        {
+            revise += 2;
+        }
+
+        if (revise == 0)
+        {
+            return;
+        }
+        int rate = 100 - 5 * revise;
+        if (rate < 10)
+        {
+            rate = 10;
+        }
+        SSTATUS_REVISE_DIFFICULTY   revise_dif;
+        SSTATUS_RATE_MINI           rate_final;
+
+        if (rate > 100)
+        { 
+            if (difficulty == DIFFICULTY_PS_NIGHTMARE)
+            {
+                revise_dif = {  50, 185,  40, 185,  40, 185 };
+            } 
+            else
+            {
+                revise_dif = {  50, 185,  80, 185,  80, 185 };
+            }
+            for (int i = 0; i < sizeof(revise_dif) / sizeof(revise_dif.entry[0]); ++i)
+            {
+                rate_final.entry[i] = (rate - 100) * revise_dif.entry[i] / 100 + 100;
+            }
+        }
+        else
+        {
+            rate_final = { (rate - 100) * 50 / 100 + 100, rate, rate, rate, rate, rate };
+        }
+        int result;
+        CALC_STATUS(HPMax, HP);
+        pStatusSum->HP = (TYPE_OF(pStatusSum->HP))result;
+        CALC_STATUS(STR, STR);
+        CALC_STATUS(DEF, DEF);
+        CALC_STATUS(ATS, ATS);
+        CALC_STATUS(ADF, ADF);
+        CALC_STATUS(SPD, SPD);
+        result = pStatusSum->MOV * rate / 100;
+        if (difficulty == DIFFICULTY_PS_NIGHTMARE && result != 0)
+        {
+            ++result;
+        }
+        else if (difficulty == DIFFICULTY_PS_EASY && (UINT)result > 1)
+        {
+            --result;
+        }
+        if (pStatusSum->MOV != 0 && result == 0)
+        {
+            result = 1;
+        }
+        pStatusSum->MOV = (TYPE_OF(pStatusSum->MOV))result;
+#undef  CALC_STATUS
+    }
+
+}
+
 namespace NED63
 {
     using namespace NED6123;
@@ -261,8 +590,8 @@ namespace NED63
         CONST USHORT NEKO_SHOE      = 0x12B;    // 299 Ã¨×¦Ñ¥
         CONST USHORT NEKO_TAIL      = 0x13E;    // 318 Ã¨Î²
 
-        CONST USHORT DEX[5]         = { 0x26A, 0x26B, 0x26C, 0x2A0, 0x2A1 };
-        CONST USHORT AGL[5]         = { 0x26D, 0x26E, 0x26F, 0x2A2, 0x2A3 };
+        using NED62::ITEM_ID::DEX;
+        using NED62::ITEM_ID::AGL;
 
         CONST USHORT DRIVE3         = 0x2EE;    // 750 ¿ÌÒ«Öé
         CONST USHORT DRIVE[3]       = { 0x2C6, 0x2C7, 0x2EE };
@@ -998,335 +1327,6 @@ L01:
             ++p;
         }
     }*/
-}
-
-namespace NED62
-{
-    using namespace NED6123;
-    using NED6123::sprintf;
-
-    namespace ITEM_ID
-    {
-        using namespace NED6123::ITEM_ID;
-        CONST USHORT NEKO_SUIT      = 0x10C;    // 268 Ã¨ßä·þ
-        CONST USHORT NEKO_SHOE      = 0x12B;    // 299 Ã¨×¦Ñ¥
-        CONST USHORT NEKO_BAND      = 0x13D;    // 317 Ã¨¶úÃ±
-        CONST USHORT NEKO_TAIL      = 0x13E;    // 318 Ã¨Î²
-
-        using NED63::ITEM_ID::DEX;
-        using NED63::ITEM_ID::AGL;
-
-        CONST USHORT DRIVE3         = 0x2CD;    // 717 ¿ÌÒ«Öé
-        CONST USHORT DRIVE[3]       = { 0x2C6, 0x2C7, 0x2CD };
-    }
-
-    #define _ED62_NS_
-    #include "ed6_ns_common.h"
-    #undef  _ED62_NS_
-
-    ASM void ed6DisplaySkipCondition()
-    {
-        __asm
-        {
-            cmp DWORD PTR DS:[ESI+0x4870],0;
-            je L01;
-            jmp addrDisplaySkipCondition2;
-L01:
-            push 0x190;
-            jmp addrDisplaySkipCondition1;
-        }
-    }
-
-    ASM void ed6DisplayStatusPatch()
-    {
-        __asm
-        {
-            call addrDisplayStatusPatch2;
-            mov edx, ebp;
-            sub edx, 0x2358;
-            push edx;
-            mov ecx, esi;
-            call CBattleInfoBox::ed6DisplayStatus;
-            jmp addrDisplayStatusPatch1;
-        }
-    }
-
-    NoInline
-    void __cdecl ed6ShowConditionAtOld(ULONG AT, float x, float y, float width, float height, ULONG a6, ULONG a7, ULONG color)
-    {
-        ASM_DUMMY_AUTO();
-    }
-    void __cdecl ed6ShowConditionAtNew(ULONG AT, float x, float y, float width, float height, ULONG a6, ULONG a7, ULONG color)
-    {
-        if (nShowConditionAT == SHOW_CONDITION_AT_HIDE99 || nShowConditionAT == SHOW_CONDITION_AT_MAX99)
-        {
-            if (AT > 99)
-            {
-                if (nShowConditionAT == SHOW_CONDITION_AT_HIDE99) return;
-                AT = 99;
-            }
-
-            if (AT < 10)
-            {
-                x -= (8.f * 2 - (16.f * resolution->cx / 640.f - 8.f * 1) / 2);
-                //x += -10.f;
-                //x += -6.8f;
-            }
-            else
-            {
-                x -= (8.f * 1 - (16.f * resolution->cx / 640.f - 8.f * 2) / 2);
-                //x += -6.f;
-                //x += -3.3f;
-            }
-        }
-
-        // x-=16 y+=16
-        y = (y - 16.f) + 16.f * resolution->cy / 480.f;
-
-        //ed6ShowConditionAtOld(AT, x, y, width * resolution->cx / 640.f, height * resolution->cy / 480.f, a6, a7, a8);
-        ed6ShowConditionAtOld(AT, x, y, width, height, a6, a7, nConditionATColor);
-    }
-    void __cdecl ed6ShowConditionAtNewLi(ULONG AT, float x, float y, float width, float height, ULONG a6, ULONG a7, ULONG color)
-    {
-        ed6ShowConditionAtNew(AT, x, y - 8.f * resolution->cy / 480.f, width, height, a6, a7, color);
-    }
-
-    void ed6SetEnemyFinalStatusPsp(ED6_CHARACTER_BATTLE_INF* lpBattleInf)
-    {
-#define CALC_STATUS(_status, _rate) \
-        result = pStatusSum->_status * rate_final._rate / 100; \
-        if (pStatusSum->_status > 0 && result == 0) \
-        { \
-            result = 1; \
-        } \
-        pStatusSum->_status = (TYPE_OF(pStatusSum->_status))result;
-//#end def
-
-        int difficulty = get_difficulty();
-        int revise = STATUS_REVISE[difficulty];
-        ED6_STATUS* pStatusSum = &lpBattleInf->StatusSum;
-      
-        //if (battle_index == 0x7A0)
-        if (lpBattleInf->MSFileIndex.file == 0x3001A5 || lpBattleInf->MSFileIndex.file == 0x3001AA)
-        {
-            switch (difficulty)
-            {
-            case DIFFICULTY_PS_NIGHTMARE:
-                revise += 5;
-                break;
-            case DIFFICULTY_PS_HARD:
-                revise += 2;
-                break;
-            case DIFFICULTY_PS_EASY:
-                revise += 3;
-                break;
-            }
-        }
-        //else if (battle_index == 0x394 && difficulty != DIFFICULTY_PS_NORMAL)
-        else if (lpBattleInf->MSFileIndex.file == 0x3002A7 && difficulty != DIFFICULTY_PS_NORMAL)
-        {
-            revise += 2;
-        }
-
-        if (revise == 0)
-        {
-            return;
-        }
-        int rate = 100 - 5 * revise;
-        if (rate < 10)
-        {
-            rate = 10;
-        }
-        SSTATUS_REVISE_DIFFICULTY   revise_dif;
-        SSTATUS_RATE_MINI           rate_final;
-
-        if (rate > 100)
-        { 
-            if (difficulty == DIFFICULTY_PS_NIGHTMARE)
-            {
-                revise_dif = {  50, 185,  40, 185,  40, 185 };
-            } 
-            else
-            {
-                revise_dif = {  50, 185,  80, 185,  80, 185 };
-            }
-            for (int i = 0; i < sizeof(revise_dif) / sizeof(revise_dif.entry[0]); ++i)
-            {
-                rate_final.entry[i] = (rate - 100) * revise_dif.entry[i] / 100 + 100;
-            }
-        }
-        else
-        {
-            rate_final = { (rate - 100) * 50 / 100 + 100, rate, rate, rate, rate, rate };
-        }
-        int result;
-        CALC_STATUS(HPMax, HP);
-        pStatusSum->HP = (TYPE_OF(pStatusSum->HP))result;
-        CALC_STATUS(STR, STR);
-        CALC_STATUS(DEF, DEF);
-        CALC_STATUS(ATS, ATS);
-        CALC_STATUS(ADF, ADF);
-        CALC_STATUS(SPD, SPD);
-        result = pStatusSum->MOV * rate / 100;
-        if (difficulty == DIFFICULTY_PS_NIGHTMARE && result != 0)
-        {
-            ++result;
-        }
-        else if (difficulty == DIFFICULTY_PS_EASY && (UINT)result > 1)
-        {
-            --result;
-        }
-        if (pStatusSum->MOV != 0 && result == 0)
-        {
-            result = 1;
-        }
-        pStatusSum->MOV = (TYPE_OF(pStatusSum->MOV))result;
-#undef  CALC_STATUS
-    }
-
-}
-
-namespace NED61
-{
-    using namespace NED6123;
-    using NED6123::sprintf;
-
-    #define _ED61_NS_
-    #include "ed6_ns_common.h"
-    #undef  _ED61_NS_
-
-    ASM void ed6DisplaySkipCondition()
-    {
-        __asm
-        {
-            cmp DWORD PTR DS:[ESI+0x4870],0x0;
-            je L01;
-            //push 0x004341B8;
-            jmp addrDisplaySkipCondition2;
-L01:
-            push 0x190;
-            //push 0x00434121;
-            jmp addrDisplaySkipCondition1;
-        }
-    }
-
-    ASM void ed6DisplayStatusPatch()
-    {
-        __asm
-        {
-            call addrDisplayStatusPatch2;
-            mov edx, ebx;
-            sub edx, 0x22A8;
-            push edx;
-            mov ecx, esi;
-            call CBattleInfoBox::ed6DisplayStatus;
-            jmp addrDisplayStatusPatch1;
-        }
-    }
-
-    NoInline
-    void __cdecl ed6ShowConditionAtOld(ULONG AT, float x, float y, float width, float height, ULONG a6, ULONG a7, ULONG color)
-    {
-        ASM_DUMMY_AUTO();
-    }
-    void __cdecl ed6ShowConditionAtNew(ULONG AT, float x, float y, float width, float height, ULONG a6, ULONG a7, ULONG color)
-    {
-        if (nShowConditionAT == SHOW_CONDITION_AT_HIDE99 || nShowConditionAT == SHOW_CONDITION_AT_MAX99)
-        {
-            if (AT > 99)
-            {
-                if (nShowConditionAT == SHOW_CONDITION_AT_HIDE99) return;
-                AT = 99;
-            }
-
-            if (AT < 10)
-            {
-                x -= (8.f * 2 - (16.f * resolution->cx / 640.f - 8.f * 1) / 2);
-            }
-            else
-            {
-                x -= (8.f * 1 - (16.f * resolution->cx / 640.f - 8.f * 2) / 2);
-            }
-        }
-
-        // x-=16 y+=16
-        y = (y - 16.f) + 16.f * resolution->cy / 480.f;
-        ed6ShowConditionAtOld(AT, x, y, width, height, a6, a7, nConditionATColor);
-    }
-
-    void ed6SetEnemyFinalStatusPsp(ED6_CHARACTER_BATTLE_INF* lpBattleInf)
-    {
-#define CALC_STATUS(_status, _rate) \
-        result = pStatusSum->_status * rate_final._rate / 100; \
-        if (pStatusSum->_status > 0 && result == 0) \
-        { \
-            result = 1; \
-        } \
-        pStatusSum->_status = (TYPE_OF(pStatusSum->_status))result;
-//#end def
-
-        int difficulty = get_difficulty();
-        int revise = STATUS_REVISE[difficulty];
-        ED6_STATUS* pStatusSum = &lpBattleInf->StatusSum;
-      
-        if (revise == 0)
-        {
-            return;
-        }
-        int rate = 100 - 5 * revise;
-        if (rate < 10)
-        {
-            rate = 10;
-        }
-        SSTATUS_REVISE_DIFFICULTY   revise_dif;
-        SSTATUS_RATE_MINI           rate_final;
-
-        if (rate > 100)
-        {
-            if (lpBattleInf->MSFileIndex.file == 0x1001ED)
-            {
-                return;
-            }
-            if (difficulty == DIFFICULTY_PS_NIGHTMARE)
-            {
-                revise_dif = { 100, 100,  50, 100,  50, 100 };
-            } 
-            else
-            {
-                revise_dif = { 100, 100, 100, 100, 100, 100 };
-            }
-            for (int i = 0; i < sizeof(revise_dif) / sizeof(revise_dif.entry[0]); ++i)
-            {
-                rate_final.entry[i] = (rate - 100) * revise_dif.entry[i] / 100 + 100;
-            }
-        }
-        else
-        {
-            rate_final = { rate, rate, rate, rate, rate, rate };
-        }
-        int result;
-        CALC_STATUS(HPMax, HP);
-        pStatusSum->HP = (TYPE_OF(pStatusSum->HP))result;
-        CALC_STATUS(STR, STR);
-        CALC_STATUS(DEF, DEF);
-        CALC_STATUS(ATS, ATS);
-        CALC_STATUS(ADF, ADF);
-        CALC_STATUS(SPD, SPD);
-
-        if (rate > 100)
-        {
-            if (difficulty == DIFFICULTY_PS_NIGHTMARE)
-            {
-                pStatusSum->ADF += pStatusSum->Level >> 1;
-            }
-            else if (difficulty == DIFFICULTY_PS_HARD)
-            {
-                pStatusSum->ADF += pStatusSum->Level >> 2;
-            }
-        }
-#undef  CALC_STATUS
-    }
-
 }
 
 enum GameVersion
