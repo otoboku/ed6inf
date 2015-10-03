@@ -227,12 +227,18 @@ namespace NED6123
 
     PSIZE       resolution                  = (PSIZE)0; // ·Ö±æÂÊ
 
-    CONST USHORT ITEM_ID_INFORMATION = 0x291;
+    namespace ITEM_ID
+    {
+        CONST USHORT INFORMATION    = 0x291;    // 657 Çé±¨
+
+        CONST USHORT DRIVE1         = 0x2C6;    // 710 Çý¶¯1
+        CONST USHORT DRIVE2         = 0x2C7;    // 711 Çý¶¯2
+    }
 
     ULONG_PTR   StubCheckQuartz;
     bool CDECL CheckQuartz(ULONG ChrPosition, USHORT ItemId, PULONG EquippedIndex = nullptr)
     {
-        if (bForceShowMonsInf && ItemId == ITEM_ID_INFORMATION)
+        if (bForceShowMonsInf && ItemId == ITEM_ID::INFORMATION)
         {
             if (EquippedIndex)
             {
@@ -248,6 +254,21 @@ namespace NED63
 {
     using namespace NED6123;
     using NED6123::sprintf;
+
+    namespace ITEM_ID
+    {
+        using namespace NED6123::ITEM_ID;
+        CONST USHORT NEKO_SHOE      = 0x12B;    // 299 Ã¨×¦Ñ¥
+        CONST USHORT NEKO_TAIL      = 0x13E;    // 318 Ã¨Î²
+
+        CONST USHORT DEX[5]         = { 0x26A, 0x26B, 0x26C, 0x2A0, 0x2A1 };
+        CONST USHORT AGL[5]         = { 0x26D, 0x26E, 0x26F, 0x2A2, 0x2A3 };
+
+        CONST USHORT DRIVE3         = 0x2EE;    // 750 ¿ÌÒ«Öé
+        CONST USHORT DRIVE[3]       = { 0x2C6, 0x2C7, 0x2EE };
+        CONST USHORT SHINKYO        = 0x292;    // 658 ÉñçR
+        CONST USHORT MAKYO          = 0x293;    // 659 Ä§çR
+    }
 
     BOOL get_status_rev_special(SSTATUS_REVISE_SPECIAL* rev, SSTATUS_REVISE_SPECIAL* rev_out, ULONG ms_file);
     INT  calc_specific_status(int type, int revise, int value, SSTATUS_REVISE_SPECIAL* revise_special);
@@ -294,20 +315,6 @@ L01:
     FILE_IN_DIR* getFileInDirInf(FileIndex* fileIndex)
     {
         return (FILE_IN_DIR*)(*(addrLPDir0 + (fileIndex->DatNo))) + fileIndex->Index;
-    }
-
-    ASM ED6_CHARACTER_BATTLE_INF* getSoldierAddr()
-    {
-        __asm
-        {
-            MOV EAX,ECX;
-            SHL EAX,0x6;
-            ADD EAX,ECX;
-            LEA EAX,DWORD PTR DS:[EAX+EAX*8];
-            SHL EAX,0x4;
-            ADD EAX,addrSoldierNo0;
-            ret;
-        }
     }
 
     ASM void ed6DisplayStatusPatch()
@@ -997,6 +1004,21 @@ namespace NED62
 {
     using namespace NED6123;
     using NED6123::sprintf;
+
+    namespace ITEM_ID
+    {
+        using namespace NED6123::ITEM_ID;
+        CONST USHORT NEKO_SUIT      = 0x10C;    // 268 Ã¨ßä·þ
+        CONST USHORT NEKO_SHOE      = 0x12B;    // 299 Ã¨×¦Ñ¥
+        CONST USHORT NEKO_BAND      = 0x13D;    // 317 Ã¨¶úÃ±
+        CONST USHORT NEKO_TAIL      = 0x13E;    // 318 Ã¨Î²
+
+        using NED63::ITEM_ID::DEX;
+        using NED63::ITEM_ID::AGL;
+
+        CONST USHORT DRIVE3         = 0x2CD;    // 717 ¿ÌÒ«Öé
+        CONST USHORT DRIVE[3]       = { 0x2C6, 0x2C7, 0x2CD };
+    }
 
     #define _ED62_NS_
     #include "ed6_ns_common.h"

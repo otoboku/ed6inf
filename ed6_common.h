@@ -65,34 +65,68 @@ namespace NED61
 {
     typedef struct
     {
-        USHORT              Level;
-        USHORT              HPMax;
-        USHORT              HP;
+        USHORT              Level;      // 0
+        USHORT              HPMax;      // 2
+        USHORT              HP;         // 4
 
-        USHORT              EPMax;
-        USHORT              EP;
-        USHORT              CP;
-        int                 EXP;
-        SHORT               STR;
-        SHORT               DEF;
-        SHORT               ATS;
-        SHORT               ADF;
-        SHORT               DEX;
-        SHORT               AGL;
-        SHORT               MOV;
-        SHORT               SPD;
-        USHORT              CPMAX;
-        DUMMY_STRUCT(4);
-        USHORT              RNG;
-        DUMMY_STRUCT(4);
-        RESISTANCE          condition;  // RESISTANCE类型，进程中有效
+        USHORT              EPMax;      // 6
+        USHORT              EP;         // 8
+        USHORT              CP;         // A
+        int                 EXP;        // C
+        SHORT               STR;        // 10
+        SHORT               DEF;        // 12
+        SHORT               ATS;        // 14
+        SHORT               ADF;        // 16
+        SHORT               DEX;        // 18
+        SHORT               AGL;        // 1A
+        SHORT               MOV;        // 1C
+        SHORT               SPD;        // 1E
+        USHORT              CPMAX;      // 20
+        DUMMY_STRUCT(4);                // 22
+        USHORT              RNG;        // 26
+        DUMMY_STRUCT(4);                // 2A
+        RESISTANCE          condition;  // 2E
         USHORT              CharacterIndex;
         DUMMY_STRUCT(2);
     } ED6_CHARACTER_STATUS;
     typedef ED6_CHARACTER_STATUS ED6_STATUS;
 
-    RESISTANCE conditionAbnormal = 0xBFF;
-    RESISTANCE conditionDown = 0x2AA0400;
+    namespace CONDITION_BIT
+    {
+        const ULONG_PTR POISON              = 0x00000001;    // 毒
+        const ULONG_PTR FREEZE              = 0x00000002;    // 冻结 FROZEN
+        const ULONG_PTR PETRIFY             = 0x00000004;    // 石化 LANDIFICATION STONE
+        const ULONG_PTR SLEEP               = 0x00000008;    // 睡眠 SLEEPING
+        const ULONG_PTR DISABLE_ARTS        = 0x00000010;    // 封魔 MUTE
+        const ULONG_PTR BLIND               = 0x00000020;    // 黑暗 DARKNESS
+        const ULONG_PTR DISABLE_CRAFT       = 0x00000040;    // 封技 SEAL
+        const ULONG_PTR CONFUSE             = 0x00000080;    // 混乱 CHAOS
+        const ULONG_PTR FAINT               = 0x00000100;    // 气绝 STUN
+        const ULONG_PTR ONE_HIT_KILL        = 0x00000200;    // 即死
+        const ULONG_PTR DEF_DOWN_FORCE      = 0x00000400;    // 绝对降防
+        const ULONG_PTR RAGE                = 0x00000800;    // 愤怒
+        const ULONG_PTR ARTS_GUARD          = 0x00001000;    // ArtsGuard
+        const ULONG_PTR CRAFT_GUARD         = 0x00002000;    // CraftGuard
+        const ULONG_PTR MOV_UP              = 0x00004000;
+        //nst ULONG_PTR empty1              = 0x00008000;    // 无
+        const ULONG_PTR STR_UP              = 0x00010000;
+        const ULONG_PTR STR_DOWN            = 0x00020000;
+        const ULONG_PTR DEF_UP              = 0x00040000;
+        const ULONG_PTR DEF_DOWN            = 0x00080000;
+        const ULONG_PTR SPD_UP              = 0x00100000;
+        const ULONG_PTR SPD_DOWN            = 0x00200000;
+        const ULONG_PTR DEX_UP              = 0x00400000;
+        const ULONG_PTR DEX_DOWN            = 0x00800000;
+        const ULONG_PTR AGL_UP              = 0x01000000;
+        const ULONG_PTR AGL_DOWN            = 0x02000000;
+        const ULONG_PTR MAX_GUARD           = 0x04000000;    // 墙 虚无领域 IMMUNE
+        const ULONG_PTR VANISH_GUARD        = 0x08000000;    // 隐身GUARD
+        const ULONG_PTR DEATH               = 0x10000000;    // 战斗不能 00 00 00 10
+    }
+
+    const ULONG_PTR conditionAbnormal       = 0xBFF;
+    const ULONG_PTR conditionDown           = 0x2AA0400;
+
     CONST ULONG SEPITH_UP_LIMIT_ORIGINAL = 70;
 
     bool IsSoldierParty(UINT SoldierNo)
@@ -122,7 +156,7 @@ namespace NED62
         SHORT               MOV;            // 24
         SHORT               SPD;            // 26
         USHORT              CPMAX;          // 28
-        DUMMY_STRUCT(4);                    
+        DUMMY_STRUCT(4);
         USHORT              RNG;            // 2E
         DUMMY_STRUCT(4);
         RESISTANCE          condition;      // 34
@@ -131,8 +165,45 @@ namespace NED62
     } ED6_CHARACTER_STATUS;
     typedef ED6_CHARACTER_STATUS ED6_STATUS;
 
-    RESISTANCE conditionAbnormal = 0x28000BFF;
-    RESISTANCE conditionDown = 0x2AA8400;
+    namespace CONDITION_BIT
+    {
+        const ULONG_PTR POISON              = 0x00000001;    // 毒
+        const ULONG_PTR FREEZE              = 0x00000002;    // 冻结 FROZEN
+        const ULONG_PTR PETRIFY             = 0x00000004;    // 石化 LANDIFICATION STONE
+        const ULONG_PTR SLEEP               = 0x00000008;    // 睡眠 SLEEPING
+        const ULONG_PTR DISABLE_ARTS        = 0x00000010;    // 封魔 MUTE
+        const ULONG_PTR BLIND               = 0x00000020;    // 黑暗 DARKNESS
+        const ULONG_PTR DISABLE_CRAFT       = 0x00000040;    // 封技 SEAL
+        const ULONG_PTR CONFUSE             = 0x00000080;    // 混乱 CHAOS
+        const ULONG_PTR FAINT               = 0x00000100;    // 气绝 STUN
+        const ULONG_PTR ONE_HIT_KILL        = 0x00000200;    // 即死
+        const ULONG_PTR DEF_DOWN_FORCE      = 0x00000400;    // 绝对降防
+        const ULONG_PTR RAGE                = 0x00000800;    // 愤怒
+        const ULONG_PTR ARTS_GUARD          = 0x00001000;    // ArtsGuard
+        const ULONG_PTR CRAFT_GUARD         = 0x00002000;    // CraftGuard
+        const ULONG_PTR MOV_UP              = 0x00004000;
+        const ULONG_PTR MOV_DOWN            = 0x00008000;
+        const ULONG_PTR STR_UP              = 0x00010000;
+        const ULONG_PTR STR_DOWN            = 0x00020000;
+        const ULONG_PTR DEF_UP              = 0x00040000;
+        const ULONG_PTR DEF_DOWN            = 0x00080000;
+        const ULONG_PTR SPD_UP              = 0x00100000;
+        const ULONG_PTR SPD_DOWN            = 0x00200000;
+        const ULONG_PTR ADF_UP              = 0x00400000;
+        const ULONG_PTR ADF_DOWN            = 0x00800000;
+        const ULONG_PTR AGL_UP              = 0x01000000;
+        const ULONG_PTR AGL_DOWN            = 0x02000000;
+        const ULONG_PTR MAX_GUARD           = 0x04000000;    // 墙 虚无领域 IMMUNE
+        const ULONG_PTR VANISH              = 0x08000000;    // Vanish
+        const ULONG_PTR CONDITION_GUARD     = 0x10000000;    // 全状态抵抗
+        const ULONG_PTR BODY_ABNORMAL       = 0x20000000;    // 变胖/变小
+        const ULONG_PTR ATS_UP              = 0x40000000;
+        const ULONG_PTR DEATH               = 0x80000000;    // 战斗不能
+    }
+
+    const ULONG_PTR conditionAbnormal       = 0x28000BFF;
+    const ULONG_PTR conditionDown           = 0x2AA8400;
+
     CONST ULONG SEPITH_UP_LIMIT_ORIGINAL = 70;
 
     bool IsSoldierParty(UINT SoldierNo)
@@ -146,14 +217,14 @@ namespace NED63
     typedef NED62::ED6_CHARACTER_STATUS ED6_CHARACTER_STATUS;
     typedef NED62::ED6_CHARACTER_STATUS ED6_STATUS;
 
-    RESISTANCE conditionAbnormal = 0x28000BFF;
-    RESISTANCE conditionDown = 0x2AA8400;
-    CONST ULONG SEPITH_UP_LIMIT_ORIGINAL = 300;
+    namespace CONDITION_BIT = NED62::CONDITION_BIT;
 
-    bool IsSoldierParty(UINT SoldierNo)
-    {
-        return SoldierNo < 8;
-    }
+    using NED62::conditionAbnormal;
+    using NED62::conditionDown;
+
+    CONST ULONG SEPITH_UP_LIMIT_ORIGINAL = 300;
+    
+    using NED62::IsSoldierParty;
 }
 
 
@@ -239,6 +310,20 @@ enum
     CHR_FLAG_AbsoluteMiss       = 0x2000,
 };
 
+enum
+{
+    ACTION_ATTACK       = 0,
+    ACTION_MOVE         = 1,
+    ACTION_ARTS         = 2,
+    ACTION_CRAFT        = 3,
+    ACTION_SCRAFT       = 4,
+    ACTION_ITEM         = 5,
+    ACTION_ARIA_ARTS    = 6,
+    ACTION_CAST_ARTS    = 7,
+    ACTION_ARIA_CRAFT   = 8,
+    ACTION_CAST_CRAFT   = 9,
+};
+
 namespace NED61
 {
     typedef struct // 0x23C8
@@ -307,7 +392,7 @@ namespace NED61
                 char                CharacterIntro[0x100];      // 0x22A8
             };
         };
-    } ED6_CHARACTER_BATTLE_INF;
+    } ED6_CHARACTER_BATTLE_INF, MONSTER_STATUS, *PMONSTER_STATUS;
 }
 
 namespace NED62
@@ -378,7 +463,7 @@ namespace NED62
                 char                CharacterIntro[0x100];      // 0x2358
             };
         };
-    } ED6_CHARACTER_BATTLE_INF;
+    } ED6_CHARACTER_BATTLE_INF, MONSTER_STATUS, *PMONSTER_STATUS;
 }
 
 namespace NED63
@@ -454,7 +539,7 @@ namespace NED63
                 char                CharacterIntro[0x100];      // 0x2370
             };
         };
-    } ED6_CHARACTER_BATTLE_INF;
+    } ED6_CHARACTER_BATTLE_INF, MONSTER_STATUS, *PMONSTER_STATUS;
 
     typedef struct
     {
@@ -625,7 +710,7 @@ typedef union _SSTATUS_RATE_MINI
         int     ADF;
         int     SPD;
     };
-    
+
 } SSTATUS_RATE_MINI;
 
 enum STATUS_TYPE

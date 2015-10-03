@@ -403,6 +403,7 @@ void __cdecl ed6ChangeEnemyStatus(UINT SoldierNo, ED6_STATUS* pStatusSum, ED6_ST
     }
 }
 
+#ifdef _ED61_NS_
 ASM void ed6ChangeEnemyStatusPatch()
 {
     __asm
@@ -419,6 +420,10 @@ ASM void ed6ChangeEnemyStatusPatch()
         jmp addrChangeEnemyStatusPatch1;
     }
 }
+#endif
+#ifdef _ED623_NS_
+using NED61::ed6ChangeEnemyStatusPatch;
+#endif
 
 #undef  _ED61_NS_
 #undef  _ED62_NS_
