@@ -46,13 +46,23 @@ typedef struct  //每组12+24字节
 
 typedef struct  // 一组 20字节
 {
-    RESISTANCE  condition;
-    DUMMY_STRUCT(4);
-    USHORT      Parameter;  // 0101 回合, 0201 次数, 0301 AT条动多少次, 0401 永久(石化)
-    SHORT       Effect; // 百分比数值
-    USHORT      ST;
-    DUMMY_STRUCT(6);
-} CONDITION;
+    ULONG               ConditionFlags;
+    PVOID               Effect;
+    //BYTE                Type; // 1 回合; 2 次数; 3 AT条动多少次; 4 永久
+    BYTE                CounterType;
+    BYTE                Flags;
+    SHORT               ConditionRate;
+    LONG                ATLeft;
+    LONG                Unknown4;
+
+    enum CounterTypes
+    {
+        ByRounds    = 1,
+        ByTimes     = 2,
+        ByActions   = 3,
+        Infinite    = 4,
+    };
+} CONDITION, MS_EFFECT_INFO, *PMS_EFFECT_INFO;
 
 typedef struct
 {
@@ -201,6 +211,13 @@ namespace NED62
         const ULONG_PTR DEATH               = 0x80000000;    // 战斗不能
     }
 
+    namespace DEBUG_BIT
+    {
+        const ULONG_PTR ATTACK_MISS         = 0x0400;       // 非必中攻击 100% miss
+        const ULONG_PTR ATTACK_HIT          = 0x1000;       // 非必中攻击 100% 命中（0x400回避优先）
+        const ULONG_PTR ATTACK_BLIND        = 0x4000;       // 非必中攻击 命中率 *= 30%（黑暗效果）
+    }
+
     const ULONG_PTR conditionAbnormal       = 0x28000BFF;
     const ULONG_PTR conditionDown           = 0x2AA8400;
 
@@ -218,6 +235,7 @@ namespace NED63
     typedef NED62::ED6_CHARACTER_STATUS ED6_STATUS;
 
     namespace CONDITION_BIT = NED62::CONDITION_BIT;
+    namespace DEBUG_BIT     = NED62::DEBUG_BIT;
 
     using NED62::conditionAbnormal;
     using NED62::conditionDown;
@@ -285,7 +303,7 @@ typedef struct  // 自定义技能格式
     //DUMMY_STRUCT(4);
     ushort  addrMagicName;  // 魔法名 地址
     ushort  addrMagicIntro; // 魔法说明 地址
-} ED6_CRAFT_INFO;
+} ED6_CRAFT_INFO, CRAFT_INFO, *PCRAFT_INFO;
 typedef ED6_CRAFT_INFO ED7_CRAFT_INFO;
 
 typedef struct
@@ -419,10 +437,23 @@ namespace NED62
                 FileIndex           SYFileIndex;
                 FileIndex           MSFileIndex;
                 FileIndex           ASFileIndex;                // 0x14
-                DUMMY_STRUCT(0x214);
-                // 0x22C
-                ED6_STATUS          StatusBasic;                // normal难度基础值
-                ED6_STATUS          StatusSum;                  // 算上难度、装备、回路
+                //DUMMY_STRUCT(0x214);
+                DUMMY_STRUCT(0x162);
+                USHORT              CurrentActionType;          // 0x17A
+                DUMMY_STRUCT(0xA);
+                USHORT              CurrentCraftIndex;          // 0x186
+                DUMMY_STRUCT(0x2C);
+                USHORT              Target[0x10];               // 0x1B4
+                BYTE                TargetCount;                // 0x1D4
+                BYTE                SelectedTargetIndex;        // 0x1D5
+                COORD               SelectedTargetPos;          // 0x1D6
+                DUMMY_STRUCT(0x36);
+                BYTE                IsHitMiss[0x10];            // 0x210
+                DUMMY_STRUCT(4);
+                PCHAR               ChrName;                    // 0x224
+                DUMMY_STRUCT(4);                                // 0x228
+                ED6_STATUS          StatusBasic;                // 0x22C
+                ED6_STATUS          StatusSum;                  // 0x268
                 USHORT              MoveSPD;                    // 移动速度，我方人员也从ms文件中读取
                 USHORT              MoveAfterAttack;            // 从ms文件中读取
                 CONDITION           Condition[31];
@@ -491,16 +522,21 @@ namespace NED63
                 FileIndex           MSFileIndex;
                 FileIndex           ASFileIndex;                // 0x18
                 DUMMY_STRUCT(0x162);
-                USHORT              wActType;
+                USHORT              CurrentActionType;          // 0x17E
                 DUMMY_STRUCT(0xA);
-                USHORT              wUseMagic;
-                DUMMY_STRUCT(0xA0-8);
-                //DUMMY_STRUCT(0x210);
-                // 0x22C
-                PCHAR               ChrName;
+                USHORT              CurrentCraftIndex;          // 0x18A
+                DUMMY_STRUCT(0x2C);
+                USHORT              Target[0x10];               // 0x1B8
+                BYTE                TargetCount;                // 0x1D8
+                BYTE                SelectedTargetIndex;        // 0x1D9
+                COORD               SelectedTargetPos;          // 0x1DA
+                DUMMY_STRUCT(0x32);
+                BYTE                IsHitMiss[0x10];            // 0x210
                 DUMMY_STRUCT(4);
-                ED6_STATUS          StatusBasic;                // normal难度基础值
-                ED6_STATUS          StatusSum;                  // 算上难度、装备、回路
+                PCHAR               ChrName;                    // 0x224
+                DUMMY_STRUCT(4);                                // 0x228
+                ED6_STATUS          StatusBasic;                // 0x22C
+                ED6_STATUS          StatusSum;                  // 0x268
                 USHORT              MoveSPD;                    // 移动速度，我方人员也从ms文件中读取
                 USHORT              MoveAfterAttack;            // 从ms文件中读取
                 CONDITION           Condition[32];

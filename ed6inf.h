@@ -224,29 +224,93 @@ namespace NED6123
     ULONG_PTR   addrChangeEnemyStatusPatch2 = 0; // call
 
     ULONG_PTR   addrCheckQuartzPatch        = (ULONG_PTR)-1;
+    ULONG_PTR   lpfnCheckEquipment          = 0;
+    ULONG_PTR   lpfnGetCraftInf             = 0;
+    ULONG_PTR   lpfnFindCondition           = 0;
+    ULONG_PTR   lpfnRand                    = 0;
+    ULONG_PTR   lpfnRandX                   = 0;
+    PULONG_PTR  lpDebugFlags                = (PULONG_PTR)0;
+    PULONG_PTR  lpBattleFlags               = (PULONG_PTR)0;
+    ULONG_PTR   addrGetHitResultPatch       = (ULONG_PTR)-1;
+
+    ULONG_PTR   addrDrive3Patch             = (ULONG_PTR)-1;
+
+    ULONG_PTR   StubCheckQuartz;
+    ULONG_PTR   StubGetHitResult;
 
     PSIZE       resolution                  = (PSIZE)0; // 分辨率
 
     namespace ITEM_ID
     {
+        CONST USHORT PHYSICAL_MIRROR= 0x28A;    // 650 物理反射
+        CONST USHORT MAGIC_MIRROR   = 0x28B;    // 651 魔法反射
+
         CONST USHORT INFORMATION    = 0x291;    // 657 情报
+        CONST USHORT SHINKYO        = 0x292;    // 658 神鏡
+        CONST USHORT MAKYO          = 0x293;    // 659 魔鏡
 
         CONST USHORT DRIVE1         = 0x2C6;    // 710 驱动1
         CONST USHORT DRIVE2         = 0x2C7;    // 711 驱动2
     }
 
-    ULONG_PTR   StubCheckQuartz;
+    FORCEINLINE int CDECL rand()
+    {
+        DETOUR_FUNCTION(rand, lpfnRand);
+    }
+
+    FORCEINLINE USHORT CDECL randX(USHORT max)
+    {
+        DETOUR_FUNCTION(randX, lpfnRandX, max);
+    }
+
+    NoInline
     bool CDECL CheckQuartz(ULONG ChrPosition, USHORT ItemId, PULONG EquippedIndex = nullptr)
     {
-        if (bForceShowMonsInf && ItemId == ITEM_ID::INFORMATION)
+        TYPE_OF(&CheckQuartz) lpCheckQuartz = (TYPE_OF(&CheckQuartz))StubCheckQuartz;
+        ULONG   who;
+        switch (ItemId)
         {
-            if (EquippedIndex)
-            {
-                *EquippedIndex = 1;
-            }
-            return true;
+            case ITEM_ID::INFORMATION:
+                if (bForceShowMonsInf)
+                {
+                    if (EquippedIndex)
+                    {
+                        *EquippedIndex = 1;
+                    }
+                    return true;
+                }
+        	    break;
+
+            case ITEM_ID::PHYSICAL_MIRROR:
+            case ITEM_ID::MAGIC_MIRROR:
+                if (lpCheckQuartz(ChrPosition, ItemId, EquippedIndex))
+                {
+                    return true;
+                } 
+                else
+                {
+                    if (lpCheckQuartz(ChrPosition, ItemId == ITEM_ID::PHYSICAL_MIRROR ? ITEM_ID::SHINKYO : ITEM_ID::MAKYO, &who))
+                    {
+                        if (rand() & 1)
+                        {
+                            if (EquippedIndex)
+                            {
+                                *EquippedIndex = who;
+                            }
+                            return true;
+                        }
+                    }
+                    return false;
+                }
+                break;
         }
-        return ((TYPE_OF(&CheckQuartz))StubCheckQuartz)(ChrPosition, ItemId, EquippedIndex);
+
+        return lpCheckQuartz(ChrPosition, ItemId, EquippedIndex);
+    }
+    FORCEINLINE
+    bool CDECL CheckEquipment(ULONG ChrPosition, USHORT ItemId, PULONG EquippedIndex = nullptr)
+    {
+        DETOUR_FUNCTION(CheckEquipment, lpfnCheckEquipment, ChrPosition, ItemId, EquippedIndex);
     }
 }
 
@@ -595,8 +659,6 @@ namespace NED63
 
         CONST USHORT DRIVE3         = 0x2EE;    // 750 刻耀珠
         CONST USHORT DRIVE[3]       = { 0x2C6, 0x2C7, 0x2EE };
-        CONST USHORT SHINKYO        = 0x292;    // 658 神鏡
-        CONST USHORT MAKYO          = 0x293;    // 659 魔鏡
     }
 
     BOOL get_status_rev_special(SSTATUS_REVISE_SPECIAL* rev, SSTATUS_REVISE_SPECIAL* rev_out, ULONG ms_file);
@@ -1580,6 +1642,16 @@ void patch_ed63cn7(PVOID hModule)
     addrChangeEnemyStatusPatch2 = 0x004A4360; // call
 
     addrCheckQuartzPatch        = 0x004A8840;
+    lpfnCheckEquipment          = 0x004A3EF0;
+    lpfnGetCraftInf             = 0x0040A1C0;
+    lpfnFindCondition           = 0x0041C0D0;
+    lpfnRand                    = 0x004A1710;
+    lpfnRandX                   = 0x004A1790;
+    lpDebugFlags                = (PULONG_PTR)0x2DA4DD4;
+    lpBattleFlags               = (PULONG_PTR)0x66A438;
+    addrGetHitResultPatch       = 0x00416FB0;
+
+    addrDrive3Patch             = 0x0042E32E;
 
     resolution                  = (PSIZE)0x005BDFF0; // 分辨率
 
@@ -1704,6 +1776,16 @@ void patch_ed63jp7(PVOID hModule)
     addrChangeEnemyStatusPatch2 = 0x004A36A0; // call
 
     addrCheckQuartzPatch        = 0x004A6EF0;
+    lpfnCheckEquipment          = 0x004A3230;
+    lpfnGetCraftInf             = 0x0040A1D0;
+    lpfnFindCondition           = 0x0041BE20;
+    lpfnRand                    = 0x004A0B10;
+    lpfnRandX                   = 0x004A0B90;
+    lpDebugFlags                = (PULONG_PTR)0x2DA2420;
+    lpBattleFlags               = (PULONG_PTR)0x6663D0;
+    addrGetHitResultPatch       = 0x00416DC0;
+
+    addrDrive3Patch             = 0x0042DF0E;
 
     resolution                  = (PSIZE)0x005B86C0; // 分辨率
     CodePage                    = 932;
@@ -1818,6 +1900,16 @@ void patch_ed63jp1002(PVOID hModule)
     addrChangeEnemyStatusPatch2 = 0x004A35B0; // call
 
     addrCheckQuartzPatch        = 0x004A6DF0;
+    lpfnCheckEquipment          = 0x004A3140;
+    lpfnGetCraftInf             = 0x0040A1D0;
+    lpfnFindCondition           = 0x0041BE20;
+    lpfnRand                    = 0x004A08E0;
+    lpfnRandX                   = 0x004A0960;
+    lpDebugFlags                = (PULONG_PTR)0x2DA0988;
+    lpBattleFlags               = (PULONG_PTR)0x666290;
+    addrGetHitResultPatch       = 0x00416DC0;
+
+    addrDrive3Patch             = 0x0042DEFE;
 
     resolution                  = (PSIZE)0x005B8644; // 分辨率
 
@@ -1954,6 +2046,16 @@ void patch_ed62cn7(PVOID hModule)
     addrChangeEnemyStatusPatch2 = 0x004CE170; // call
 
     addrCheckQuartzPatch        = 0x004CE300;
+    lpfnCheckEquipment          = 0x004C9F60;
+    lpfnGetCraftInf             = 0x00409B80;
+    lpfnFindCondition           = 0x004194B0;
+    lpfnRand                    = 0x004C7650;
+    lpfnRandX                   = 0x004C76D0;
+    lpDebugFlags                = (PULONG_PTR)0x2EE0D5C;
+    lpBattleFlags               = (PULONG_PTR)0x607A20;
+    addrGetHitResultPatch       = 0x00414830;
+
+    addrDrive3Patch             = 0x00428D8E;
 
     resolution                  = (PSIZE)0x005643F8; // 分辨率
 
@@ -2058,6 +2160,16 @@ void patch_ed62jp7(PVOID hModule)
     addrChangeEnemyStatusPatch2 = 0x004CCF00; // call
 
     addrCheckQuartzPatch        = 0x004CD090;
+    lpfnCheckEquipment          = 0x004C9940;
+    lpfnGetCraftInf             = 0x00409BD0;
+    lpfnFindCondition           = 0x004192B0;
+    lpfnRand                    = 0x004C70E0;
+    lpfnRandX                   = 0x004C7160;
+    lpDebugFlags                = (PULONG_PTR)0x2EE2210;
+    lpBattleFlags               = (PULONG_PTR)0x6078F8;
+    addrGetHitResultPatch       = 0x00414700;
+
+    addrDrive3Patch             = 0x00428AAE;
 
     resolution                  = (PSIZE)0x00563CB0; // 分辨率
     CodePage                    = 932;
@@ -2153,6 +2265,16 @@ void patch_ed62jp1020(PVOID hModule)
     addrChangeEnemyStatusPatch2 = 0x004CCB30; // call
 
     addrCheckQuartzPatch        = 0x004CCCC0;
+    lpfnCheckEquipment          = 0x004C9580;
+    lpfnGetCraftInf             = 0x00409BD0;
+    lpfnFindCondition           = 0x004192C0;
+    lpfnRand                    = 0x004C6BE0;
+    lpfnRandX                   = 0x004C6C60;
+    lpDebugFlags                = (PULONG_PTR)0x2EDF778;
+    lpBattleFlags               = (PULONG_PTR)0x6067B8;
+    addrGetHitResultPatch       = 0x00414710;
+
+    addrDrive3Patch             = 0x00428ABE;
 
     resolution                  = (PSIZE)0x00562BF4; // 分辨率
 
@@ -2478,13 +2600,40 @@ void patch_ed61jp7(PVOID hModule)
 
 void patch_ed6123(PVOID hModule)
 {
-    using namespace NED6123;
-
-    MEMORY_FUNCTION_PATCH p[] =
     {
-        INLINE_HOOK_JUMP(addrCheckQuartzPatch,  CheckQuartz, StubCheckQuartz),
-    };
-    Nt_PatchMemory(nullptr, 0, p, countof(p), hModule);
+        using namespace NED6123;
+
+        MEMORY_FUNCTION_PATCH f[] =
+        {
+            INLINE_HOOK_JUMP        (addrCheckQuartzPatch,      CheckQuartz,        StubCheckQuartz),
+        };
+        Nt_PatchMemory(nullptr, 0, f, countof(f), hModule);
+    }
+
+    if (FLAG_ON(g_GameVersion, ed61min))
+    {
+        using namespace NED61;
+    }
+    else if (FLAG_ON(g_GameVersion, ed62min))
+    {
+        using namespace NED62;
+        MEMORY_FUNCTION_PATCH f[] =
+        {
+            INLINE_HOOK_JUMP        (addrGetHitResultPatch,     GetHitResult,       StubGetHitResult),
+            PATCH_FUNCTION(CALL, NOT_RVA, addrDrive3Patch,      ed6Drive3Patch, 0),
+        };
+        Nt_PatchMemory(nullptr, 0, f, countof(f), hModule);
+    }
+    else if (FLAG_ON(g_GameVersion, ed63min))
+    {
+        using namespace NED63;
+        MEMORY_FUNCTION_PATCH f[] =
+        {
+            INLINE_HOOK_JUMP        (addrGetHitResultPatch,     GetHitResult,       StubGetHitResult),
+            PATCH_FUNCTION(CALL, NOT_RVA, addrDrive3Patch,      ed6Drive3Patch, 0),
+        };
+        Nt_PatchMemory(nullptr, 0, f, countof(f), hModule);
+    }
 }
 
 void Init()
@@ -2501,6 +2650,16 @@ void Init()
 
 #if CONSOLE_DEBUG
     QueryPerformanceFrequency(&lFrequency);
+    PrintConsoleW(L"ED63 Is 0x17E, 0x18A, 0x210, 0x268?: %#x %#x %#x %#x\r\n", 
+        FIELD_OFFSET(NED63::MONSTER_STATUS, CurrentActionType), 
+        FIELD_OFFSET(NED63::MONSTER_STATUS, CurrentCraftIndex), 
+        FIELD_OFFSET(NED63::MONSTER_STATUS, IsHitMiss),
+        FIELD_OFFSET(NED63::MONSTER_STATUS, StatusSum));
+    PrintConsoleW(L"ED62 Is 0x17A, 0x186, 0x210, 0x268?: %#x %#x %#x %#x\r\n", 
+        FIELD_OFFSET(NED62::MONSTER_STATUS, CurrentActionType), 
+        FIELD_OFFSET(NED62::MONSTER_STATUS, CurrentCraftIndex), 
+        FIELD_OFFSET(NED62::MONSTER_STATUS, IsHitMiss),
+        FIELD_OFFSET(NED62::MONSTER_STATUS, StatusSum));
 #endif
     //NED63::print_status_rev_base(t_btrev2);
 

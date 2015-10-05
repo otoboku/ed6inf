@@ -19,6 +19,17 @@
 using namespace NED62;
 #endif
 
+#define ITEM_ID_DRIVE1  0x2C6
+#define ITEM_ID_DRIVE2  0x2C7
+
+#ifdef  _ED62_NS_
+#define ITEM_ID_DRIVE3  0x2CD
+#endif
+
+#ifdef  _ED63_NS_
+#define ITEM_ID_DRIVE3  0x2EE
+#endif
+
 class CBattleInfoBox
 {
 public:
@@ -76,6 +87,16 @@ ED6_CHARACTER_BATTLE_INF* getChrBattleInf()
 FORCEINLINE ULONG CDECL EnumCondition(ULONG index)
 {
     DETOUR_FUNCTION(EnumCondition, lpfnEnumCondition, index);
+}
+
+FORCEINLINE CONDITION* CDECL FindCondition(PMONSTER_STATUS lpBattleInf, ULONG_PTR condition)
+{
+    DETOUR_FUNCTION(FindCondition, lpfnFindCondition, lpBattleInf, condition);
+}
+
+FORCEINLINE CRAFT_INFO* CDECL GetCraftInf(PMONSTER_STATUS lpBattleInf, ULONG_PTR craft)
+{
+    DETOUR_FUNCTION(GetCraftInf, lpfnGetCraftInf, lpBattleInf, craft);
 }
 
 RESISTANCE ed6GetResistance(ED6_CHARACTER_BATTLE_INF* lpBattleInf)
@@ -403,7 +424,6 @@ void __cdecl ed6ChangeEnemyStatus(UINT SoldierNo, ED6_STATUS* pStatusSum, ED6_ST
     }
 }
 
-#ifdef _ED61_NS_
 ASM void ed6ChangeEnemyStatusPatch()
 {
     __asm
@@ -420,11 +440,287 @@ ASM void ed6ChangeEnemyStatusPatch()
         jmp addrChangeEnemyStatusPatch1;
     }
 }
-#endif
+
 #ifdef _ED623_NS_
-using NED61::ed6ChangeEnemyStatusPatch;
+bool CDECL GetHitResultOriginal(PMONSTER_STATUS src, PMONSTER_STATUS dst)
+{
+    bool result = false;
+    for (;;)
+    {
+        // 绝对回避
+        if (FLAG_ON(dst->HitFlag, CHR_FLAG_AbsoluteMiss))
+        {
+            result = false;
+            break;
+        }
+        CRAFT_INFO* craft_inf = GetCraftInf(src, src->CurrentCraftIndex);
+        CONDITION*  condition = nullptr;
+        // 技能必中
+        if (FLAG_ON(craft_inf->SpecialEffect, 1))
+        {
+            result = true;
+            break;
+        }
+        // 打自己人必中
+        if((FLAG_ON(src->RoleFlag, CHR_FLAG_PARTY) && FLAG_ON(dst->RoleFlag, CHR_FLAG_PARTY)) ||
+           (FLAG_ON(src->RoleFlag, CHR_FLAG_ENEMY) && FLAG_ON(dst->RoleFlag, CHR_FLAG_ENEMY)) )
+        {
+            result = true;
+            break;
+        }
+        if (FLAG_ON(*lpDebugFlags, DEBUG_BIT::ATTACK_MISS))
+        {
+            result = false;
+            break;
+        }
+        if (FLAG_ON(*lpDebugFlags, DEBUG_BIT::ATTACK_HIT) || 
+            FLAG_ON(*lpBattleFlags, 0x8020) ||
+            src->CurrentActionType == ACTION_ARTS ||
+            FindCondition(dst, 0x8800030E))
+        {
+            result = true;
+            break;
+        }
+
+        int dex = src->StatusSum.DEX;
+        int agl = dst->StatusSum.AGL;
+        condition = FindCondition(dst, CONDITION_BIT::AGL_DOWN);
+        if (condition)
+        {
+            agl -= condition->ConditionRate;
+        }
+        condition = FindCondition(dst, CONDITION_BIT::AGL_UP);
+        if (condition)
+        {
+            agl += condition->ConditionRate;
+        }
+        if (agl < 0)
+        {
+            agl = 0;
+        }
+        if (dex < 0)
+        {
+            dex = 0;
+        }
+        if (src->CurrentActionType == ACTION_SCRAFT)
+        {
+            agl /= 2;
+        }
+        dex *= 10;
+        agl *= 10;
+        int rand_result = randX(USHORT(dex + agl));
+        WriteConsoleLogW(L"Hit %d(HIT*10) Mis %d(MIS*10) 命中(%d - %d) 结果[%d]\r\n", dex, agl, dex + agl, agl, rand_result);
+        if (rand_result < agl)
+        {
+            result = false;
+            break;
+        }
+
+        if (FLAG_ON(*lpDebugFlags, DEBUG_BIT::ATTACK_BLIND) || FindCondition(src, CONDITION_BIT::BLIND))
+        {
+            if (randX(10000) < 7000)
+            {
+                result = false;
+                break;
+            }
+        }
+        result = true;
+        break;
+    }
+    src->IsHitMiss[dst->SoldierNo] = result ? 0 : 1;
+    return result;
+}
+
+bool CDECL GetHitResult(PMONSTER_STATUS src, PMONSTER_STATUS dst)
+{
+    if (!bPSP_MODE)
+    {
+        return ((TYPE_OF(&GetHitResult))StubGetHitResult)(src, dst);
+    }
+    bool result = false;
+    for(;;)
+    {
+        // 绝对回避
+        if (FLAG_ON(dst->HitFlag, CHR_FLAG_AbsoluteMiss))
+        {
+            result = false;
+            break;
+        }
+        CRAFT_INFO* craft_inf = GetCraftInf(src, src->CurrentCraftIndex);
+        CONDITION*  condition = nullptr;
+        // 技能必中
+        if (FLAG_ON(craft_inf->SpecialEffect, 1))
+        {
+            result = true;
+            break;
+        }
+        // 打自己人必中
+        if((FLAG_ON(src->RoleFlag, CHR_FLAG_PARTY) && FLAG_ON(dst->RoleFlag, CHR_FLAG_PARTY)) ||
+           (FLAG_ON(src->RoleFlag, CHR_FLAG_ENEMY) && FLAG_ON(dst->RoleFlag, CHR_FLAG_ENEMY)) )
+        {
+            result = true;
+            break;
+        }
+        if (FLAG_ON(*lpDebugFlags, DEBUG_BIT::ATTACK_MISS))
+        {
+            result = false;
+            break;
+        }
+        if (FLAG_ON(*lpDebugFlags, DEBUG_BIT::ATTACK_HIT) || 
+            FLAG_ON(*lpBattleFlags, 0x8020) ||
+            src->CurrentActionType == ACTION_ARTS ||
+            FindCondition(dst, 0x8800030E))
+        {
+            result = true;
+            break;
+        }
+
+        int dex = src->StatusSum.DEX;
+        int agl = dst->StatusSum.AGL;
+        int dex_rate = 0;
+        int agl_rate = 0;
+        int i;
+        int rand_result;
+        condition = FindCondition(dst, CONDITION_BIT::AGL_DOWN);
+        if (condition)
+        {
+            agl -= condition->ConditionRate;
+        }
+        condition = FindCondition(dst, CONDITION_BIT::AGL_UP);
+        if (condition)
+        {
+            agl_rate += condition->ConditionRate / 2;
+        }
+        for (i = 0; i < countof(ITEM_ID::AGL); ++i)
+        {
+            if (CheckQuartz(dst->SoldierNo, ITEM_ID::AGL[i]))
+            {
+                agl_rate += ++i * 3;
+                break;
+            }
+        }
+        for (i = 0; i < countof(ITEM_ID::DEX); ++i)
+        {
+            if (CheckQuartz(src->SoldierNo, ITEM_ID::DEX[i]))
+            {
+                dex_rate += ++i * 5;
+                break;
+            }
+        }
+        if (CheckEquipment(dst->SoldierNo, ITEM_ID::NEKO_SHOE))
+        {
+            agl_rate += 5;
+#ifdef _ED62_NS_
+            if (CheckEquipment(dst->SoldierNo, ITEM_ID::NEKO_SUIT) &&
+                //CheckEquipment(dst->SoldierNo, ITEM_ID::NEKO_SHOE) &&
+                CheckEquipment(dst->SoldierNo, ITEM_ID::NEKO_BAND) &&
+                CheckEquipment(dst->SoldierNo, ITEM_ID::NEKO_TAIL))
+            {
+                agl_rate += 5;
+            }
+#endif
+        }
+        if (CheckEquipment(src->SoldierNo, ITEM_ID::NEKO_TAIL))
+        {
+            dex_rate += 5;
+#ifdef _ED62_NS_
+            if (CheckEquipment(src->SoldierNo, ITEM_ID::NEKO_SUIT) &&
+                CheckEquipment(src->SoldierNo, ITEM_ID::NEKO_SHOE) &&
+                CheckEquipment(src->SoldierNo, ITEM_ID::NEKO_BAND))
+                //CheckEquipment(src->SoldierNo, ITEM_ID::NEKO_TAIL))
+            {
+                dex_rate += 5;
+            }
+#endif
+        }
+        bool is_blind = FLAG_ON(*lpDebugFlags, DEBUG_BIT::ATTACK_BLIND) || FindCondition(src, CONDITION_BIT::BLIND) ? true : false;
+
+        if (agl < 0)
+        {
+            agl = 0;
+        }
+        if (dex < 0)
+        {
+            dex = 0;
+        }
+        if (src->CurrentActionType == ACTION_SCRAFT)
+        {
+            agl /= 2;
+        }
+        else
+        {
+            // dex_rate VS rand
+            if (!is_blind)
+            {
+                rand_result = randX(100);
+                WriteConsoleLogW(L"dex_rate:%d rand_result:%d\r\n", dex_rate, rand_result);
+                if (rand_result < dex_rate)
+                {
+                    result = true;
+                    break;
+                }
+            }
+
+            // agl_rate VS rand
+            rand_result = randX(100);
+            WriteConsoleLogW(L"agl_rate:%d rand_result:%d\r\n", agl_rate, rand_result);
+            if (rand_result < agl_rate)
+            {
+                result = false;
+                break;
+            }
+        }
+
+        // dex VS agl
+        dex *= 10;
+        agl *= 10;
+        rand_result = randX((dex + agl) & 0xFFFE);
+        WriteConsoleLogW(L"Hit %d(HIT*10) Mis %d(MIS*10) 命中(%d - %d) 结果[%d]\r\n", dex, agl, dex + agl, agl, rand_result);
+        if (rand_result < agl)
+        {
+            result = false;
+            break;
+        }
+
+        if (is_blind)
+        {
+            if (randX(10000) < 7000)
+            {
+                result = false;
+                break;
+            }
+        }
+        result = true;
+        break;
+    }
+    src->IsHitMiss[dst->SoldierNo] = result ? 0 : 1;
+    return result;
+}
+
+ASM VOID ed6Drive3Patch()
+{
+    __asm
+    {
+        cmp eax, ITEM_ID_DRIVE1;
+        jl  drive_false;
+        cmp eax, ITEM_ID_DRIVE2;
+        jle drive_true;
+        cmp eax, ITEM_ID_DRIVE3;
+        je  drive_true
+    drive_false:
+        add dword ptr[esp], 0x34;
+        ret;
+    drive_true:
+        add dword ptr[esp], 0x9;
+        ret;
+    }
+
+}
 #endif
 
+#undef  ITEM_ID_DRIVE1
+#undef  ITEM_ID_DRIVE2
+#undef  ITEM_ID_DRIVE3
 #undef  _ED61_NS_
 #undef  _ED62_NS_
 #undef  _ED63_NS_
