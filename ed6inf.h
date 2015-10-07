@@ -249,6 +249,9 @@ namespace NED6123
     ULONG_PTR   StubCheckCraftMirror;
     ULONG_PTR   StubCheckArtsMirror;
 
+    ULONG_PTR   addrSetChrStatusByEquipPatch= (ULONG_PTR)-1;
+    ULONG_PTR   StubSetChrStatusByEquip;
+
     PSIZE       resolution                  = (PSIZE)0; // 分辨率
 
     bool        half_mirror_rand[0x10];
@@ -469,6 +472,8 @@ namespace NED62
         CONST USHORT DRIVE[3]       = { 0x2C6, 0x2C7, 0x2CD };
     }
 
+    VOID CDECL SetChrStatusByEquip(ULONG ChrNo, CHAR_STATUS* pStatus);
+
     #define _ED62_NS_
     #include "ed6_ns_common.h"
     #undef  _ED62_NS_
@@ -631,6 +636,19 @@ L01:
         }
         pStatusSum->MOV = (TYPE_OF(pStatusSum->MOV))result;
 #undef  CALC_STATUS
+    }
+
+    VOID CDECL SetChrStatusByEquip(ULONG ChrNo, CHAR_STATUS* pStatus)
+    {
+        ((TYPE_OF(&SetChrStatusByEquip))StubSetChrStatusByEquip)(ChrNo, pStatus);
+        if (bPSP_MODE &&
+            CheckEquipment(ChrNo, ITEM_ID::NEKO_SUIT) &&
+            CheckEquipment(ChrNo, ITEM_ID::NEKO_SHOE) &&
+            CheckEquipment(ChrNo, ITEM_ID::NEKO_BAND) &&
+            CheckEquipment(ChrNo, ITEM_ID::NEKO_TAIL))
+        {
+            pStatus->SPD += 15;
+        }
     }
 
 }
@@ -1515,6 +1533,8 @@ enum GameVersion
     ed62cn7,
     ed62jp7,
     ed62jp1020,
+    ed62cn1020fc,
+    ed62cn1020fcli,
 
     ed63min = 0x40000,
     ed63cn7,
@@ -2203,6 +2223,8 @@ void patch_ed62cn7(PVOID hModule)
 
     addrDrive3Patch             = 0x00428D8E;
 
+    addrSetChrStatusByEquipPatch= 0x004CA0A0;
+
     resolution                  = (PSIZE)0x005643F8; // 分辨率
 
     if (*(PBYTE)addrChangeEnemyStatusPatch0 == 0xE9) // 0xE8 call 0xE9 jump; 防止重复补丁
@@ -2321,6 +2343,8 @@ void patch_ed62jp7(PVOID hModule)
 
     addrDrive3Patch             = 0x00428AAE;
 
+    addrSetChrStatusByEquipPatch= 0x004C9A80;
+
     resolution                  = (PSIZE)0x00563CB0; // 分辨率
     CodePage                    = 932;
 
@@ -2430,6 +2454,8 @@ void patch_ed62jp1020(PVOID hModule)
 
     addrDrive3Patch             = 0x00428ABE;
 
+    addrSetChrStatusByEquipPatch= 0x004C96C0;
+
     resolution                  = (PSIZE)0x00562BF4; // 分辨率
 
     unsigned char p004339F9[6] = { 0xE9, 0xF2, 0x00, 0x00, 0x00, 0x90 };
@@ -2447,6 +2473,12 @@ void patch_ed62jp1020(PVOID hModule)
     {
         Hooked = TRUE;
         return;
+    }
+
+    if (*(PULONG)0x0047A7C2 == 0x02CC11CA)  // 整合 理补
+    {
+        //g_GameVersion = ed62cn1020fc;
+        addrSetChrStatusByEquipPatch = (ULONG_PTR)-1;
     }
 
     if (*(UINT*)0x00562C04 == 0x59977089 && *(UINT*)0x004C6F01 == 0x562BEC) //日版 windows名称
@@ -2798,6 +2830,9 @@ void patch_ed6123(PVOID hModule)
 
             // PSP 驱动3
             PATCH_FUNCTION(JUMP, NOT_RVA, addrDrive3Patch,      ed6Drive3Patch, 0),
+
+            // PSP 猫咪套装+SPD
+            INLINE_HOOK_JUMP        (addrSetChrStatusByEquipPatch,  SetChrStatusByEquip,    StubSetChrStatusByEquip),
         };
         Nt_PatchMemory(nullptr, 0, f, countof(f), hModule);
     }

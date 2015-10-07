@@ -99,7 +99,7 @@ namespace NED61
         USHORT              CharacterIndex;
         DUMMY_STRUCT(2);
     } ED6_CHARACTER_STATUS;
-    typedef ED6_CHARACTER_STATUS ED6_STATUS;
+    typedef ED6_CHARACTER_STATUS ED6_STATUS, CHAR_STATUS, *PCHAR_STATUS;
 
     namespace CONDITION_BIT
     {
@@ -173,7 +173,7 @@ namespace NED62
         USHORT              CharacterIndex; // 38
         DUMMY_STRUCT(2);
     } ED6_CHARACTER_STATUS;
-    typedef ED6_CHARACTER_STATUS ED6_STATUS;
+    typedef ED6_CHARACTER_STATUS ED6_STATUS, CHAR_STATUS, *PCHAR_STATUS;
 
     namespace CONDITION_BIT
     {
@@ -232,7 +232,7 @@ namespace NED62
 namespace NED63
 {
     typedef NED62::ED6_CHARACTER_STATUS ED6_CHARACTER_STATUS;
-    typedef NED62::ED6_CHARACTER_STATUS ED6_STATUS;
+    typedef NED62::ED6_CHARACTER_STATUS ED6_STATUS, CHAR_STATUS, *PCHAR_STATUS;
 
     namespace CONDITION_BIT = NED62::CONDITION_BIT;
     namespace DEBUG_BIT     = NED62::DEBUG_BIT;
