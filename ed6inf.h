@@ -234,16 +234,29 @@ namespace NED6123
     ULONG_PTR   addrGetHitResultPatch       = (ULONG_PTR)-1;
 
     ULONG_PTR   addrDrive3Patch             = (ULONG_PTR)-1;
+    ULONG_PTR   addrDrive3PatchTrue;
+    ULONG_PTR   addrDrive3PatchFalse;
+
+    ULONG_PTR   addrInitBeforeAtIconUpPatch = (ULONG_PTR)-1;
+    ULONG_PTR   addrCheckCraftMirrorPatch   = (ULONG_PTR)-1;
+    ULONG_PTR   addrCheckArtsMirrorPatch    = (ULONG_PTR)-1;
+    ULONG_PTR   addrCheckMirrorWPADPatch    = (ULONG_PTR)-1;
+    ULONG_PTR   addrCheckMirrorWPADBack;
+    ULONG_PTR   addrFixMirrorBugPatch       = (ULONG_PTR)-1;
 
     ULONG_PTR   StubCheckQuartz;
     ULONG_PTR   StubGetHitResult;
+    ULONG_PTR   StubCheckCraftMirror;
+    ULONG_PTR   StubCheckArtsMirror;
 
     PSIZE       resolution                  = (PSIZE)0; // ∑÷±Ê¬ 
 
+    bool        half_mirror_rand[0x10];
+
     namespace ITEM_ID
     {
-        CONST USHORT PHYSICAL_MIRROR= 0x28A;    // 650 ŒÔ¿Ì∑¥…‰
-        CONST USHORT MAGIC_MIRROR   = 0x28B;    // 651 ƒß∑®∑¥…‰
+        CONST USHORT CRAFT_MIRROR   = 0x28A;    // 650 ŒÔ¿Ì∑¥…‰
+        CONST USHORT ARTS_MIRROR    = 0x28B;    // 651 ƒß∑®∑¥…‰
 
         CONST USHORT INFORMATION    = 0x291;    // 657 «È±®
         CONST USHORT SHINKYO        = 0x292;    // 658 …ÒÁR
@@ -267,7 +280,7 @@ namespace NED6123
     bool CDECL CheckQuartz(ULONG ChrPosition, USHORT ItemId, PULONG EquippedIndex = nullptr)
     {
         TYPE_OF(&CheckQuartz) lpCheckQuartz = (TYPE_OF(&CheckQuartz))StubCheckQuartz;
-        ULONG   who;
+        //ULONG   who;
         switch (ItemId)
         {
             case ITEM_ID::INFORMATION:
@@ -280,29 +293,6 @@ namespace NED6123
                     return true;
                 }
         	    break;
-
-            case ITEM_ID::PHYSICAL_MIRROR:
-            case ITEM_ID::MAGIC_MIRROR:
-                if (lpCheckQuartz(ChrPosition, ItemId, EquippedIndex))
-                {
-                    return true;
-                } 
-                else
-                {
-                    if (lpCheckQuartz(ChrPosition, ItemId == ITEM_ID::PHYSICAL_MIRROR ? ITEM_ID::SHINKYO : ITEM_ID::MAKYO, &who))
-                    {
-                        if (rand() & 1)
-                        {
-                            if (EquippedIndex)
-                            {
-                                *EquippedIndex = who;
-                            }
-                            return true;
-                        }
-                    }
-                    return false;
-                }
-                break;
         }
 
         return lpCheckQuartz(ChrPosition, ItemId, EquippedIndex);
@@ -318,6 +308,7 @@ namespace NED61
 {
     using namespace NED6123;
     using NED6123::sprintf;
+    using NED6123::rand;
 
     #define _ED61_NS_
     #include "ed6_ns_common.h"
@@ -461,6 +452,7 @@ namespace NED62
 {
     using namespace NED6123;
     using NED6123::sprintf;
+    using NED6123::rand;
 
     namespace ITEM_ID
     {
@@ -647,6 +639,7 @@ namespace NED63
 {
     using namespace NED6123;
     using NED6123::sprintf;
+    using NED6123::rand;
 
     namespace ITEM_ID
     {
@@ -663,6 +656,15 @@ namespace NED63
 
     BOOL get_status_rev_special(SSTATUS_REVISE_SPECIAL* rev, SSTATUS_REVISE_SPECIAL* rev_out, ULONG ms_file);
     INT  calc_specific_status(int type, int revise, int value, SSTATUS_REVISE_SPECIAL* revise_special);
+    bool STDCALL CheckCraftMirror(PMONSTER_STATUS src, PMONSTER_STATUS dst);
+    bool STDCALL CheckArtsMirror (PMONSTER_STATUS src, PMONSTER_STATUS dst);
+    VOID CheckMirrorWhenPreviewAtDelay();
+
+    NoInline
+    bool CheckCraftMirrorWithType(PMONSTER_STATUS src, PMONSTER_STATUS dst, LONG action_type = -1);
+    NoInline
+    bool CheckArtsMirrorWithType (PMONSTER_STATUS src, PMONSTER_STATUS dst, LONG action_type = -1);
+    bool FASTCALL CheckMirrorWithType(PMONSTER_STATUS src, PMONSTER_STATUS dst, LONG action_type);
 
     #define _ED63_NS_
     #include "ed6_ns_common.h"
@@ -1389,6 +1391,117 @@ L01:
             ++p;
         }
     }*/
+
+    VOID THISCALL CBattle::InitBeforeAtIconUp()
+    {
+        PMONSTER_STATUS lpBattleInf;
+        FOR_EACH(lpBattleInf, getChrBattleInf(), 0x10)
+        {
+            if (FLAG_OFF(lpBattleInf->RoleFlag, CHR_FLAG_EMPTY))
+            {
+                half_mirror_rand[lpBattleInf->SoldierNo] = rand() & 1;
+                WriteConsoleLogW(L"%d.%d ", lpBattleInf->SoldierNo, half_mirror_rand[lpBattleInf->SoldierNo]);
+            }
+        }
+        WriteConsoleLogW(L"\r\n");
+        return (this->*StubInitBeforeAtIconUp)();
+    }
+
+    bool STDCALL CheckCraftMirror(PMONSTER_STATUS src, PMONSTER_STATUS dst)
+    {
+        return CheckCraftMirrorWithType(src, dst);
+    }
+    bool CheckCraftMirrorWithType(PMONSTER_STATUS src, PMONSTER_STATUS dst, LONG action_type /* = -1 */)
+    {
+        if (!bPSP_MODE)
+        {
+            return ((TYPE_OF(&CheckCraftMirror))StubCheckCraftMirror)(src, dst);
+        }
+
+        if (src == dst ||
+            (FLAG_ON(src->RoleFlag, CHR_FLAG_PARTY) && FLAG_ON(dst->RoleFlag, CHR_FLAG_PARTY)))
+        {
+            return false;
+        }
+
+        if (action_type == -1)
+        {
+            action_type= src->CurrentActionType;
+        }
+        if (action_type == ACTION_ATTACK || 
+            action_type == ACTION_CRAFT  || 
+            action_type == ACTION_SCRAFT ||
+            action_type == ACTION_CAST_CRAFT)
+        {
+            if ((CheckQuartz(dst->SoldierNo, ITEM_ID::CRAFT_MIRROR) ||
+                (CheckQuartz(dst->SoldierNo, ITEM_ID::SHINKYO) && half_mirror_rand[dst->SoldierNo])) &&
+                FLAG_OFF(GetCraftInf(src, src->CurrentCraftIndex)->SpecialEffect, CRAFT_INFO::SpecialEffects::IGNORE_MIRROR))
+            {
+                WriteConsoleLogA("CRAFT_MIRROR:[%d]%s hit [%d]%s\r\n", src->SoldierNo, src->ChrName, dst->SoldierNo, dst->ChrName);
+                return true;
+            }
+        }
+        return false;
+    }
+
+    bool STDCALL CheckArtsMirror(PMONSTER_STATUS src, PMONSTER_STATUS dst)
+    {
+        return CheckArtsMirrorWithType(src, dst);
+    }
+    bool CheckArtsMirrorWithType(PMONSTER_STATUS src, PMONSTER_STATUS dst, LONG action_type /* = -1 */)
+    {
+        if (!bPSP_MODE)
+        {
+            return ((TYPE_OF(&CheckArtsMirror))StubCheckArtsMirror)(src, dst);
+        }
+
+        if (src == dst ||
+            (FLAG_ON(src->RoleFlag, CHR_FLAG_PARTY) && FLAG_ON(dst->RoleFlag, CHR_FLAG_PARTY)))
+        {
+            return false;
+        }
+
+        if (action_type == -1)
+        {
+            action_type= src->CurrentActionType;
+        }
+        if (action_type == ACTION_ARTS)
+        {
+            if ((CheckQuartz(dst->SoldierNo, ITEM_ID::ARTS_MIRROR) ||
+                (CheckQuartz(dst->SoldierNo, ITEM_ID::MAKYO) && half_mirror_rand[dst->SoldierNo])) &&
+                FLAG_OFF(GetCraftInf(src, src->CurrentCraftIndex)->SpecialEffect, CRAFT_INFO::SpecialEffects::IGNORE_MIRROR))
+            {
+                WriteConsoleLogA("ARTS_MIRROR:[%d]%s hit [%d]%s\r\n", src->SoldierNo, src->ChrName, dst->SoldierNo, dst->ChrName);
+                return true;
+            }
+        }
+        return false;
+    }
+    bool FASTCALL CheckMirrorWithType(PMONSTER_STATUS src, PMONSTER_STATUS dst, LONG action_type)
+    {
+        WriteConsoleLogA("Check_MIRROR:[%d]%s hit [%d]%s type:%d\r\n", src->SoldierNo, src->ChrName, dst->SoldierNo, dst->ChrName, action_type);
+        if (CheckCraftMirrorWithType(src, dst, action_type) || CheckArtsMirrorWithType(src, dst, action_type))
+        {
+            return true;
+        }
+        return false;
+    }
+    ASM VOID CheckMirrorWhenPreviewAtDelay()
+    {
+        INLINE_ASM
+        {
+            movzx   eax, ax;
+            push    eax;
+            mov     edx, esi;
+            mov     ecx, ebp;
+            call    CheckMirrorWithType;
+            test    al, al;
+            je      jumpback;
+            xor     bl, bl;
+        jumpback:
+            jmp     addrCheckMirrorWPADBack;
+        }
+    }
 }
 
 enum GameVersion
@@ -1653,9 +1766,20 @@ void patch_ed63cn7(PVOID hModule)
 
     addrDrive3Patch             = 0x0042E32E;
 
+    addrInitBeforeAtIconUpPatch = 0x00402D80;
+    addrCheckCraftMirrorPatch   = 0x0042E500;
+    addrCheckArtsMirrorPatch    = 0x0042E4A0;
+    addrCheckMirrorWPADPatch    = 0x0043E964;
+    addrCheckMirrorWPADBack     = 0x0043E9B3;
+    addrFixMirrorBugPatch       = 0x0043A400 - 0x00400000;
+
     resolution                  = (PSIZE)0x005BDFF0; // ∑÷±Ê¬ 
 
-    if (*(unsigned char*)addrChangeEnemyStatusPatch0 != 0xE8)   return; //0xE8 call 0xE9 jump; ∑¿÷π÷ÿ∏¥≤π∂°
+    if (*(PBYTE)addrChangeEnemyStatusPatch0 == 0xE9) // 0xE8 call 0xE9 jump; ∑¿÷π÷ÿ∏¥≤π∂°
+    {
+        Hooked = TRUE;
+        return;
+    }
 
     if (nShowAT != 0)   // œ‘AT
     {
@@ -1787,10 +1911,21 @@ void patch_ed63jp7(PVOID hModule)
 
     addrDrive3Patch             = 0x0042DF0E;
 
+    addrInitBeforeAtIconUpPatch = 0x00402D80;
+    addrCheckCraftMirrorPatch   = 0x0042E0E0;
+    addrCheckArtsMirrorPatch    = 0x0042E080;
+    addrCheckMirrorWPADPatch    = 0x0043E454;
+    addrCheckMirrorWPADBack     = 0x0043E4A3;
+    addrFixMirrorBugPatch       = 0x00439F00 - 0x00400000;
+
     resolution                  = (PSIZE)0x005B86C0; // ∑÷±Ê¬ 
     CodePage                    = 932;
 
-    if (*(unsigned char*)addrChangeEnemyStatusPatch0 != 0xE8)   return; //0xE8 call 0xE9 jump; ∑¿÷π÷ÿ∏¥≤π∂°
+    if (*(PBYTE)addrChangeEnemyStatusPatch0 == 0xE9) // 0xE8 call 0xE9 jump; ∑¿÷π÷ÿ∏¥≤π∂°
+    {
+        Hooked = TRUE;
+        return;
+    }
 
     if (nShowAT != 0)   // œ‘AT
     {
@@ -1911,13 +2046,24 @@ void patch_ed63jp1002(PVOID hModule)
 
     addrDrive3Patch             = 0x0042DEFE;
 
+    addrInitBeforeAtIconUpPatch = 0x00402D80;
+    addrCheckCraftMirrorPatch   = 0x0042E0D0;
+    addrCheckArtsMirrorPatch    = 0x0042E070;
+    addrCheckMirrorWPADPatch    = 0x0043E444;
+    addrCheckMirrorWPADBack     = 0x0043E493;
+    addrFixMirrorBugPatch       = 0x00439EF0 - 0x00400000;
+
     resolution                  = (PSIZE)0x005B8644; // ∑÷±Ê¬ 
 
     unsigned char p0044A548[9] = { 0x6A, 0x01, 0x8B, 0xCE, 0xE8, 0x0F, 0xC8, 0x0D, 0x00 };
     unsigned char p00528A34[5] = { 0xE8, 0xD7, 0xFD, 0xFF, 0xFF };
     unsigned char p0043CA3F[6] = { 0xE9, 0x2E, 0x01, 0x00, 0x00, 0x90 };
 
-    if (*(unsigned char*)addrChangeEnemyStatusPatch0 != 0xE8)   return; //0xE8 call 0xE9 jump; ∑¿÷π÷ÿ∏¥≤π∂°
+    if (*(PBYTE)addrChangeEnemyStatusPatch0 == 0xE9) // 0xE8 call 0xE9 jump; ∑¿÷π÷ÿ∏¥≤π∂°
+    {
+        Hooked = TRUE;
+        return;
+    }
 
     if (*(UINT*)0x005B8654 == 0x59977089 && *(UINT*)0x004A0C34 == 0x5B863C) //»’∞Ê windows√˚≥∆
     {
@@ -2059,7 +2205,11 @@ void patch_ed62cn7(PVOID hModule)
 
     resolution                  = (PSIZE)0x005643F8; // ∑÷±Ê¬ 
 
-    if (*(unsigned char*)addrChangeEnemyStatusPatch0 != 0xE8)   return; //0xE8 call 0xE9 jump; ∑¿÷π÷ÿ∏¥≤π∂°
+    if (*(PBYTE)addrChangeEnemyStatusPatch0 == 0xE9) // 0xE8 call 0xE9 jump; ∑¿÷π÷ÿ∏¥≤π∂°
+    {
+        Hooked = TRUE;
+        return;
+    }
 
     if (nShowAT != 0)   // œ‘AT
     {
@@ -2174,7 +2324,11 @@ void patch_ed62jp7(PVOID hModule)
     resolution                  = (PSIZE)0x00563CB0; // ∑÷±Ê¬ 
     CodePage                    = 932;
 
-    if (*(unsigned char*)addrChangeEnemyStatusPatch0 != 0xE8)   return; //0xE8 call 0xE9 jump; ∑¿÷π÷ÿ∏¥≤π∂°
+    if (*(PBYTE)addrChangeEnemyStatusPatch0 == 0xE9) // 0xE8 call 0xE9 jump; ∑¿÷π÷ÿ∏¥≤π∂°
+    {
+        Hooked = TRUE;
+        return;
+    }
 
     if (nShowAT != 0)   // œ‘AT
     {
@@ -2289,7 +2443,11 @@ void patch_ed62jp1020(PVOID hModule)
 
     unsigned char p00419839[7]  = { 0xDB, 0x44, 0x24, 0x44, 0x8B, 0x43, 0x0C };
 
-    if (*(unsigned char*)addrChangeEnemyStatusPatch0 != 0xE8)   return; //0xE8 call 0xE9 jump; ∑¿÷π÷ÿ∏¥≤π∂°
+    if (*(PBYTE)addrChangeEnemyStatusPatch0 == 0xE9) // 0xE8 call 0xE9 jump; ∑¿÷π÷ÿ∏¥≤π∂°
+    {
+        Hooked = TRUE;
+        return;
+    }
 
     if (*(UINT*)0x00562C04 == 0x59977089 && *(UINT*)0x004C6F01 == 0x562BEC) //»’∞Ê windows√˚≥∆
     {
@@ -2436,7 +2594,11 @@ void patch_ed61cn7(PVOID hModule)
 
     resolution                  = (PSIZE)0x005204DC; // ∑÷±Ê¬ 
 
-    if (*(unsigned char*)addrChangeEnemyStatusPatch0 != 0xE8)   return; //0xE8 call 0xE9 jump; ∑¿÷π÷ÿ∏¥≤π∂°
+    if (*(PBYTE)addrChangeEnemyStatusPatch0 == 0xE9) // 0xE8 call 0xE9 jump; ∑¿÷π÷ÿ∏¥≤π∂°
+    {
+        Hooked = TRUE;
+        return;
+    }
 
     if (nShowAT != 0)   // œ‘AT
     {
@@ -2542,7 +2704,11 @@ void patch_ed61jp7(PVOID hModule)
     resolution                  = (PSIZE)0x00520F04; // ∑÷±Ê¬ 
     CodePage                    = 932;
 
-    if (*(unsigned char*)addrChangeEnemyStatusPatch0 != 0xE8)   return; //0xE8 call 0xE9 jump; ∑¿÷π÷ÿ∏¥≤π∂°
+    if (*(PBYTE)addrChangeEnemyStatusPatch0 == 0xE9) // 0xE8 call 0xE9 jump; ∑¿÷π÷ÿ∏¥≤π∂°
+    {
+        Hooked = TRUE;
+        return;
+    }
 
     if (nShowAT != 0)   // œ‘AT
     {
@@ -2603,6 +2769,14 @@ void patch_ed6123(PVOID hModule)
     {
         using namespace NED6123;
 
+        addrDrive3PatchFalse        = addrDrive3Patch + 5 + 0x34;
+        addrDrive3PatchTrue         = addrDrive3Patch + 5 + 0x9;
+        if (!bPSP_MODE)
+        {
+            addrCheckMirrorWPADPatch    = (ULONG_PTR)-1;
+            addrFixMirrorBugPatch       = (ULONG_PTR)-1;
+        }
+
         MEMORY_FUNCTION_PATCH f[] =
         {
             INLINE_HOOK_JUMP        (addrCheckQuartzPatch,      CheckQuartz,        StubCheckQuartz),
@@ -2619,20 +2793,38 @@ void patch_ed6123(PVOID hModule)
         using namespace NED62;
         MEMORY_FUNCTION_PATCH f[] =
         {
+            // PSP √¸÷–¬ /ªÿ±‹¬ …Ë∂®
             INLINE_HOOK_JUMP        (addrGetHitResultPatch,     GetHitResult,       StubGetHitResult),
-            PATCH_FUNCTION(CALL, NOT_RVA, addrDrive3Patch,      ed6Drive3Patch, 0),
+
+            // PSP «˝∂Ø3
+            PATCH_FUNCTION(JUMP, NOT_RVA, addrDrive3Patch,      ed6Drive3Patch, 0),
         };
         Nt_PatchMemory(nullptr, 0, f, countof(f), hModule);
     }
     else if (FLAG_ON(g_GameVersion, ed63min))
     {
         using namespace NED63;
+
+        MEMORY_PATCH p[] =
+        {
+            PATCH_MEMORY(0x32EB,        2,      addrFixMirrorBugPatch), // ¡—º◊∂œ ∑¥…‰ø®◊°bug
+        };
+
         MEMORY_FUNCTION_PATCH f[] =
         {
+            // PSP √¸÷–¬ /ªÿ±‹¬ …Ë∂®
             INLINE_HOOK_JUMP        (addrGetHitResultPatch,     GetHitResult,       StubGetHitResult),
-            PATCH_FUNCTION(CALL, NOT_RVA, addrDrive3Patch,      ed6Drive3Patch, 0),
+
+            // PSP «˝∂Ø3
+            PATCH_FUNCTION(JUMP, NOT_RVA, addrDrive3Patch,      ed6Drive3Patch, 0),
+
+            // PSP …Òæµ ƒßæµ
+            INLINE_HOOK_JUMP        (addrInitBeforeAtIconUpPatch,   METHOD_PTR(&CBattle::InitBeforeAtIconUp),   CBattle::StubInitBeforeAtIconUp),
+            INLINE_HOOK_JUMP        (addrCheckCraftMirrorPatch,     CheckCraftMirror,   StubCheckCraftMirror),
+            INLINE_HOOK_JUMP        (addrCheckArtsMirrorPatch,      CheckArtsMirror,    StubCheckArtsMirror),
+            INLINE_HOOK_JUMP_NULL   (addrCheckMirrorWPADPatch,      CheckMirrorWhenPreviewAtDelay),
         };
-        Nt_PatchMemory(nullptr, 0, f, countof(f), hModule);
+        Nt_PatchMemory(p, countof(p), f, countof(f), hModule);
     }
 }
 
@@ -2693,6 +2885,9 @@ void Init()
             break;
     }
 
-    patch_ed6123(hModule);
-    Hooked = TRUE;
+    if (!Hooked)
+    {
+        patch_ed6123(hModule);
+        Hooked = TRUE;
+    }
 }

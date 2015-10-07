@@ -73,11 +73,14 @@ class CBattle
 public:
     bool LoadStatusData(ULONG MSFile, ULONG ChrPosition, ULONG a3 = 0);
     VOID dump_status_rev_special(ULONG ChrPosition);
+    VOID InitBeforeAtIconUp();
 
     DECL_STATIC_METHOD_POINTER(CBattle, LoadStatusData);
+    DECL_STATIC_METHOD_POINTER(CBattle, InitBeforeAtIconUp);
 };
 
 INIT_STATIC_MEMBER(CBattle::StubLoadStatusData);
+INIT_STATIC_MEMBER(CBattle::StubInitBeforeAtIconUp);
 
 ED6_CHARACTER_BATTLE_INF* getChrBattleInf()
 {
@@ -334,7 +337,7 @@ VOID THISCALL CBattleInfoBox::ed6DisplayStatus(ED6_CHARACTER_BATTLE_INF* lpBattl
 
 #if CONSOLE_DEBUG
     QueryPerformanceCounter(&lStopCounter);
-    PrintConsoleW(L"Elapsed time: %lf ms\n", (lStopCounter.QuadPart - lStartCounter.QuadPart) * 1000.0 / lFrequency.QuadPart);
+    //PrintConsoleW(L"Elapsed time: %lf ms\n", (lStopCounter.QuadPart - lStartCounter.QuadPart) * 1000.0 / lFrequency.QuadPart);
 #endif
 }
 
@@ -708,11 +711,13 @@ ASM VOID ed6Drive3Patch()
         cmp eax, ITEM_ID_DRIVE3;
         je  drive_true
     drive_false:
-        add dword ptr[esp], 0x34;
-        ret;
+        //add dword ptr[esp], 0x34;
+        jmp addrDrive3PatchFalse
+        //ret;
     drive_true:
-        add dword ptr[esp], 0x9;
-        ret;
+        //add dword ptr[esp], 0x9;
+        jmp addrDrive3PatchTrue
+        //ret;
     }
 
 }

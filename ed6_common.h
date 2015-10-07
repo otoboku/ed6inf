@@ -303,6 +303,13 @@ typedef struct  // 自定义技能格式
     //DUMMY_STRUCT(4);
     ushort  addrMagicName;  // 魔法名 地址
     ushort  addrMagicIntro; // 魔法说明 地址
+
+    enum SpecialEffects
+    {
+        IGNORE_AGL          = 0x01,
+        IGNORE_ARIA_IMPEDE  = 0x02,
+        IGNORE_MIRROR       = 0x40,     // CRAFT_MIRROR ARTS_MIRROR
+    };
 } ED6_CRAFT_INFO, CRAFT_INFO, *PCRAFT_INFO;
 typedef ED6_CRAFT_INFO ED7_CRAFT_INFO;
 
