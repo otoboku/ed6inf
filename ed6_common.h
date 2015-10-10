@@ -147,7 +147,7 @@ namespace NED61
 
 namespace NED62
 {
-    typedef struct
+    typedef struct  // 0x3C
     {
         UINT                Level;          // 0
         UINT                HPMax;          // 4

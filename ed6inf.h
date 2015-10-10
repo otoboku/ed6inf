@@ -88,16 +88,17 @@ SStatusRate sRate;
 
 // ini [Battle]
 
-int     nDifficulty = 0;
-int     nSepithUpLimit = 0;
-int     nShowAT = 0;
-int     nShowConditionAT = 0;
-int     nConditionATColor = 0;
+int     nDifficulty;
+int     nSepithUpLimit;
+int     nShowAT;
+int     nShowConditionAT;
+int     nConditionATColor;
 
-BOOL    bShowCraftName = FALSE;
-BOOL    bForceShowMonsInf = FALSE;
-BOOL    bUnlimitedSummon = FALSE;
-BOOL    bFixEnemyStatusBug = FALSE;
+BOOL    bShowCraftName;
+BOOL    bForceShowMonsInf;
+BOOL    bUnlimitedSummon;
+BOOL    bFixEnemyStatusBug;
+BOOL    bFixPspScDamageBug;
 
 enum
 {
@@ -112,7 +113,7 @@ enum
 
     DIFFICULTY_DEFAULT          = 0,
 };
-BOOL    bPSP_MODE = FALSE;
+BOOL    bPSP_MODE;
 
 enum
 {
@@ -251,6 +252,7 @@ namespace NED6123
 
     ULONG_PTR   addrSetChrStatusByEquipPatch= (ULONG_PTR)-1;
     ULONG_PTR   StubSetChrStatusByEquip;
+    ULONG_PTR   addrFixPspScDamageBugPatch  = (ULONG_PTR)-1;
 
     PSIZE       resolution                  = (PSIZE)0; // 分辨率
 
@@ -1649,6 +1651,8 @@ void ConfigInit()
         { (BOOL*)&bForceShowMonsInf,            'b',    L"Battle",  L"ForceShowMonsInf",        FALSE,  },
         { (BOOL*)&bUnlimitedSummon,             'b',    L"Battle",  L"UnlimitedSummon",         FALSE,  },
         { (BOOL*)&bFixEnemyStatusBug,           'b',    L"Battle",  L"FixEnemyStatusBug",       FALSE,  },
+        { (BOOL*)&bFixPspScDamageBug,           'b',    L"Battle",  L"FixPspScDamageBug",       FALSE,  },
+        
     };
 
     CONFIG_ENTRY *Entry;
@@ -2224,6 +2228,7 @@ void patch_ed62cn7(PVOID hModule)
     addrDrive3Patch             = 0x00428D8E;
 
     addrSetChrStatusByEquipPatch= 0x004CA0A0;
+    addrFixPspScDamageBugPatch  = 0x00405AED - 0x00400000;
 
     resolution                  = (PSIZE)0x005643F8; // 分辨率
 
@@ -2344,6 +2349,7 @@ void patch_ed62jp7(PVOID hModule)
     addrDrive3Patch             = 0x00428AAE;
 
     addrSetChrStatusByEquipPatch= 0x004C9A80;
+    addrFixPspScDamageBugPatch  = 0x00405AE0 - 0x00400000;
 
     resolution                  = (PSIZE)0x00563CB0; // 分辨率
     CodePage                    = 932;
@@ -2455,6 +2461,7 @@ void patch_ed62jp1020(PVOID hModule)
     addrDrive3Patch             = 0x00428ABE;
 
     addrSetChrStatusByEquipPatch= 0x004C96C0;
+    addrFixPspScDamageBugPatch  = 0x00405AE0 - 0x00400000;
 
     resolution                  = (PSIZE)0x00562BF4; // 分辨率
 
@@ -2478,7 +2485,8 @@ void patch_ed62jp1020(PVOID hModule)
     if (*(PULONG)0x0047A7C2 == 0x02CC11CA)  // 整合 理补
     {
         //g_GameVersion = ed62cn1020fc;
-        addrSetChrStatusByEquipPatch = (ULONG_PTR)-1;
+        addrSetChrStatusByEquipPatch    = (ULONG_PTR)-1;
+        addrFixPspScDamageBugPatch      = (ULONG_PTR)-1;
     }
 
     if (*(UINT*)0x00562C04 == 0x59977089 && *(UINT*)0x004C6F01 == 0x562BEC) //日版 windows名称
@@ -2809,6 +2817,11 @@ void patch_ed6123(PVOID hModule)
             addrFixMirrorBugPatch       = (ULONG_PTR)-1;
         }
 
+        if (!bPSP_MODE || bFixPspScDamageBug)
+        {
+            addrFixPspScDamageBugPatch  = (ULONG_PTR)-1;
+        }
+
         MEMORY_FUNCTION_PATCH f[] =
         {
             INLINE_HOOK_JUMP        (addrCheckQuartzPatch,      CheckQuartz,        StubCheckQuartz),
@@ -2823,6 +2836,12 @@ void patch_ed6123(PVOID hModule)
     else if (FLAG_ON(g_GameVersion, ed62min))
     {
         using namespace NED62;
+
+        MEMORY_PATCH p[] =
+        {
+            PATCH_MEMORY(0xEB,          1,      addrFixPspScDamageBugPatch),    // PSP 攻击料理
+        };
+
         MEMORY_FUNCTION_PATCH f[] =
         {
             // PSP 命中率/回避率设定
@@ -2834,7 +2853,7 @@ void patch_ed6123(PVOID hModule)
             // PSP 猫咪套装+SPD
             INLINE_HOOK_JUMP        (addrSetChrStatusByEquipPatch,  SetChrStatusByEquip,    StubSetChrStatusByEquip),
         };
-        Nt_PatchMemory(nullptr, 0, f, countof(f), hModule);
+        Nt_PatchMemory(p, countof(p), f, countof(f), hModule);
     }
     else if (FLAG_ON(g_GameVersion, ed63min))
     {
