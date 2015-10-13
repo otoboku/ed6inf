@@ -2089,15 +2089,14 @@ void patch_ed63jp1002(PVOID hModule)
         return;
     }
 
+    if (*(PULONG)0x0044A085 != 0x22)
+    {
+        addrDisplaySkipCondition0       = (ULONG_PTR)-1;    // 仿p放右上角了
+    }
+
     if (*(UINT*)0x005B8654 == 0x59977089 && *(UINT*)0x004A0C34 == 0x5B863C) //日版 windows名称
     {
         CodePage = 932;
-        MEMORY_FUNCTION_PATCH f1[] =
-        {
-            PATCH_FUNCTION(JUMP, NOT_RVA, addrDisplaySkipCondition0,    ed6DisplaySkipCondition, 0),
-            //PATCH_FUNCTION(JUMP, NOT_RVA, addrDisplayResetWidth0,       ed6DisplayResetWidth, 0, ed6DisplayResetWidthOld), // jp ver only
-        };
-        Nt_PatchMemory(NULL, 0, f1, countof(f1), hModule);
     }
 
     if (nShowAT != 0)   // 显AT
@@ -2163,7 +2162,7 @@ void patch_ed63jp1002(PVOID hModule)
 
     MEMORY_FUNCTION_PATCH f[] =
     {
-        //PATCH_FUNCTION(JUMP, NOT_RVA, addrDisplaySkipCondition0,  ed6DisplaySkipCondition, 0),
+        PATCH_FUNCTION(JUMP, NOT_RVA, addrDisplaySkipCondition0,    ed6DisplaySkipCondition, 0),
         PATCH_FUNCTION(CALL, NOT_RVA, addrDisplayBattleIcoEx0,      NED63::ed6DisplayBattleIcoEx, 1),
         PATCH_FUNCTION(JUMP, NOT_RVA, addrDisplayStatusPatch0,      ed6DisplayStatusPatch, 0),
         PATCH_FUNCTION(JUMP, NOT_RVA, addrDisplayItemDropPatch0,    ed6DisplayItemDropPatch, 0),
@@ -2488,15 +2487,15 @@ void patch_ed62jp1020(PVOID hModule)
         addrSetChrStatusByEquipPatch    = (ULONG_PTR)-1;
         addrFixPspScDamageBugPatch      = (ULONG_PTR)-1;
     }
+    
+    if (*(PULONG)0x00440E13 != 0x22)
+    {
+        addrDisplaySkipCondition0       = (ULONG_PTR)-1;    // 整合放右上角了
+    }
 
     if (*(UINT*)0x00562C04 == 0x59977089 && *(UINT*)0x004C6F01 == 0x562BEC) //日版 windows名称
     {
         CodePage = 932;
-        MEMORY_FUNCTION_PATCH f1[] =
-        {
-            PATCH_FUNCTION(JUMP, NOT_RVA, addrDisplaySkipCondition0,    ed6DisplaySkipCondition, 0), // jp ver only
-        };
-        Nt_PatchMemory(NULL, 0, f1, countof(f1), hModule);
     }
 
     if (nShowAT != 0)   // 显AT
@@ -2539,7 +2538,8 @@ void patch_ed62jp1020(PVOID hModule)
         //nConditionATColor = CONDITION_AT_COLOR_ORIGINAL;
         MEMORY_PATCH p1[] =
         {
-            //PATCH_MEMORY(p004339F9,   6, 0x0339F9),   // AT 显示减少
+            PATCH_MEMORY(0x643525,  4, 0x15A644),   // Exp %4d->%5d
+            PATCH_MEMORY(0xEB,      1, 0x005F65),   // party display extra inf
             PATCH_MEMORY(0x549330,  4, 0x00419846 -0x00400000), // 状态AT调整恢复
             PATCH_MEMORY(0x549330,  4, 0x00419853 -0x00400000), // 状态AT调整恢复
             PATCH_MEMORY(p00419839, sizeof(p00419839), 0x00419839 -0x00400000), // 状态AT max99恢复
@@ -2585,7 +2585,7 @@ void patch_ed62jp1020(PVOID hModule)
 
     MEMORY_FUNCTION_PATCH f[] =
     {
-        //PATCH_FUNCTION(JUMP, NOT_RVA, addrDisplaySkipCondition0,  ed6DisplaySkipCondition, 0), //整合放右上角了
+        PATCH_FUNCTION(JUMP, NOT_RVA, addrDisplaySkipCondition0,    ed6DisplaySkipCondition, 0),
         PATCH_FUNCTION(CALL, NOT_RVA, addrDisplayBattleIcoEx0,      NED63::ed6DisplayBattleIcoEx, 1),
         PATCH_FUNCTION(JUMP, NOT_RVA, addrDisplayStatusPatch0,      ed6DisplayStatusPatch, 0),
         PATCH_FUNCTION(JUMP, NOT_RVA, addrChangeEnemyStatusPatch0,  ed6ChangeEnemyStatusPatch, 0),
@@ -2811,16 +2811,6 @@ void patch_ed6123(PVOID hModule)
 
         addrDrive3PatchFalse        = addrDrive3Patch + 5 + 0x34;
         addrDrive3PatchTrue         = addrDrive3Patch + 5 + 0x9;
-        if (!bPSP_MODE)
-        {
-            addrCheckMirrorWPADPatch    = (ULONG_PTR)-1;
-            addrFixMirrorBugPatch       = (ULONG_PTR)-1;
-        }
-
-        if (!bPSP_MODE || bFixPspScDamageBug)
-        {
-            addrFixPspScDamageBugPatch  = (ULONG_PTR)-1;
-        }
 
         MEMORY_FUNCTION_PATCH f[] =
         {
@@ -2836,6 +2826,11 @@ void patch_ed6123(PVOID hModule)
     else if (FLAG_ON(g_GameVersion, ed62min))
     {
         using namespace NED62;
+
+        if (!bPSP_MODE || bFixPspScDamageBug)
+        {
+            addrFixPspScDamageBugPatch  = (ULONG_PTR)-1;
+        }
 
         MEMORY_PATCH p[] =
         {
@@ -2858,6 +2853,12 @@ void patch_ed6123(PVOID hModule)
     else if (FLAG_ON(g_GameVersion, ed63min))
     {
         using namespace NED63;
+
+        if (!bPSP_MODE)
+        {
+            addrCheckMirrorWPADPatch    = (ULONG_PTR)-1;
+            addrFixMirrorBugPatch       = (ULONG_PTR)-1;
+        }
 
         MEMORY_PATCH p[] =
         {
