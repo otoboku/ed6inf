@@ -33,36 +33,37 @@ using namespace NED62;
 class CBattleInfoBox
 {
 public:
-    VOID SetTextSize(ULONG size_index)
+    VOID THISCALL SetTextSize(ULONG size_index)
     {
         DETOUR_METHOD(CBattleInfoBox, SetTextSize, lpfnSetTextSize, size_index);
     }
 
-    VOID DrawSimpleText(LONG x, LONG y, PCSTR text, ULONG color_index = COLOR_WHITE, LONG weight = FW_NORMAL)
+    VOID THISCALL DrawSimpleText(LONG x, LONG y, PCSTR text, ULONG color_index = COLOR_WHITE, LONG weight = FW_NORMAL)
     {
         DETOUR_METHOD(CBattleInfoBox, DrawSimpleText, lpfnDrawSimpleText, x, y, text, color_index, weight);
     }
 
 #ifdef _ED61_NS_
-    VOID DrawBattleIcon(ULONG_PTR pTexture, PPOINT icon, PPOINT target)
+    VOID THISCALL DrawBattleIcon(ULONG_PTR pTexture, PPOINT icon, PPOINT target)
     {
         DETOUR_METHOD(CBattleInfoBox, DrawBattleIcon, lpfnDrawBattleIcon, pTexture, icon, target);
     }
 #endif
 
 #ifdef _ED623_NS_
-    VOID DrawBattleIcon(ULONG_PTR pTexture, PPOINT icon, PPOINT target, BOOL dark = FALSE)
+    VOID THISCALL DrawBattleIcon(ULONG_PTR pTexture, PPOINT icon, PPOINT target, BOOL dark = FALSE)
     {
         DETOUR_METHOD(CBattleInfoBox, DrawBattleIcon, lpfnDrawBattleIcon, pTexture, icon, target, dark);
     }
 #endif
 
-    ULONG DrawSimpleTextMultiline(LONG x, LONG y, LONG indent, ULONG height, PCSTR text, INT length = 0, ULONG color_index = COLOR_WHITE, LONG weight = FW_NORMAL);
+    //DECL_EXPORT
+    ULONG FASTCALL DrawSimpleTextMultiline(LONG x, LONG y, LONG indent, ULONG height, PCSTR text, INT length = 0, ULONG color_index = COLOR_WHITE, LONG weight = FW_NORMAL);
 
-    VOID ed6DisplayStatus(ED6_CHARACTER_BATTLE_INF* lpBattleInf);
-    VOID ed6DisplayItemDrop(ED6_CHARACTER_BATTLE_INF* lpBattleInf);
+    VOID FASTCALL ed6DisplayStatus(ED6_CHARACTER_BATTLE_INF* lpBattleInf);
+    VOID FASTCALL ed6DisplayItemDrop(ED6_CHARACTER_BATTLE_INF* lpBattleInf);
 
-    VOID DrawMonsterInfo();
+    VOID THISCALL DrawMonsterInfo();
     DECL_STATIC_METHOD_POINTER(CBattleInfoBox, DrawMonsterInfo);
 };
 
@@ -71,9 +72,9 @@ INIT_STATIC_MEMBER(CBattleInfoBox::StubDrawMonsterInfo);
 class CBattle
 {
 public:
-    bool LoadStatusData(ULONG MSFile, ULONG ChrPosition, ULONG a3 = 0);
-    VOID dump_status_rev_special(ULONG ChrPosition);
-    VOID InitBeforeAtIconUp();
+    bool THISCALL LoadStatusData(ULONG MSFile, ULONG ChrPosition, ULONG a3 = 0);
+    VOID FASTCALL dump_status_rev_special(ULONG ChrPosition);
+    VOID THISCALL InitBeforeAtIconUp();
 
     DECL_STATIC_METHOD_POINTER(CBattle, LoadStatusData);
     DECL_STATIC_METHOD_POINTER(CBattle, InitBeforeAtIconUp);
@@ -206,7 +207,7 @@ RESISTANCE ed6GetResistance(ED6_CHARACTER_BATTLE_INF* lpBattleInf)
     return resist;
 }
 
-VOID THISCALL CBattleInfoBox::ed6DisplayStatus(ED6_CHARACTER_BATTLE_INF* lpBattleInf)
+VOID FASTCALL CBattleInfoBox::ed6DisplayStatus(ED6_CHARACTER_BATTLE_INF* lpBattleInf)
 {
     if (g_bShowExtraInfo == FALSE)
     {

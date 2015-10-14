@@ -341,7 +341,7 @@ L01:
             call addrDisplayStatusPatch2;
             mov edx, ebx;
             sub edx, 0x22A8;
-            push edx;
+            //;push edx;
             mov ecx, esi;
             call CBattleInfoBox::ed6DisplayStatus;
             jmp addrDisplayStatusPatch1;
@@ -500,7 +500,7 @@ L01:
             call addrDisplayStatusPatch2;
             mov edx, ebp;
             sub edx, 0x2358;
-            push edx;
+            //;push edx;
             mov ecx, esi;
             call CBattleInfoBox::ed6DisplayStatus;
             jmp addrDisplayStatusPatch1;
@@ -741,14 +741,14 @@ L01:
             call addrDisplayStatusPatch2;
             mov edx, ebx;
             sub edx, 0x2370;
-            push edx;
+            //;push edx;
             mov ecx, esi;
             call CBattleInfoBox::ed6DisplayStatus;
             jmp addrDisplayStatusPatch1;
         }
     }
 
-    VOID THISCALL CBattleInfoBox::ed6DisplayItemDrop(ED6_CHARACTER_BATTLE_INF* lpBattleInf)
+    VOID FASTCALL CBattleInfoBox::ed6DisplayItemDrop(ED6_CHARACTER_BATTLE_INF* lpBattleInf)
     {
 
 #if 0
@@ -976,7 +976,8 @@ L02:
             push 0x190;
             jmp addrDisplayItemDropPatch1;
 L01:
-            push ebx;
+            //;push ebx;
+            mov edx, ebx;
             mov ecx, esi;
             call CBattleInfoBox::ed6DisplayItemDrop;
             ; mov g_bShowInfoPage2, 0;
@@ -1393,7 +1394,7 @@ L01:
         return (this->*StubLoadStatusData)(MSFile, ChrPosition, a3);      
     }
 
-    VOID THISCALL CBattle::dump_status_rev_special(ULONG ChrPosition)
+    VOID FASTCALL CBattle::dump_status_rev_special(ULONG ChrPosition)
     {
         SSTATUS_REVISE_SPECIAL* p = t_btrev2;
         ED6_CHARACTER_BATTLE_INF* lpBattleInf = getChrBattleInf() + ChrPosition;
