@@ -100,6 +100,8 @@ BOOL    bUnlimitedSummon;
 BOOL    bFixEnemyStatusBug;
 BOOL    bFixPspScDamageBug;
 
+BOOL    bRandomDamageVoice;
+
 enum
 {
     DIFFICULTY_PC_ORIGINAL      = -1,
@@ -254,6 +256,11 @@ namespace NED6123
     ULONG_PTR   StubSetChrStatusByEquip;
     ULONG_PTR   addrFixPspScDamageBugPatch  = (ULONG_PTR)-1;
 
+    ULONG_PTR   lpfnBattleDamageVoice       = (ULONG_PTR)-1;
+    ULONG_PTR   lpfnStopSound;
+    ULONG_PTR   lpfnBattlePlaySound;
+    PULONG_PTR  lpTimeMs;
+
     PSIZE       resolution                  = (PSIZE)0; // 分辨率
 
     bool        half_mirror_rand[0x10];
@@ -306,6 +313,11 @@ namespace NED6123
     bool CDECL CheckEquipment(ULONG ChrPosition, USHORT ItemId, PULONG EquippedIndex = nullptr)
     {
         DETOUR_FUNCTION(CheckEquipment, lpfnCheckEquipment, ChrPosition, ItemId, EquippedIndex);
+    }
+
+    FORCEINLINE bool CDECL StopSound(ULONG id)
+    {
+        DETOUR_FUNCTION(StopSound, lpfnStopSound, id);
     }
 }
 
@@ -1287,6 +1299,12 @@ L01:
         {
             return;
         }*/
+
+        // not set AI if not battle entry
+        if (FLAG_ON(lpBattleInf->RoleFlag, CHR_FLAG_ENEMY | CHR_FLAG_PARTY | CHR_FLAG_EMPTY))
+        {
+            return;
+        }
         INT revise_ai = 0;
         if (difficulty == DIFFICULTY_PS_NIGHTMARE)
         {
@@ -1653,7 +1671,9 @@ void ConfigInit()
         { (BOOL*)&bUnlimitedSummon,             'b',    L"Battle",  L"UnlimitedSummon",         FALSE,  },
         { (BOOL*)&bFixEnemyStatusBug,           'b',    L"Battle",  L"FixEnemyStatusBug",       FALSE,  },
         { (BOOL*)&bFixPspScDamageBug,           'b',    L"Battle",  L"FixPspScDamageBug",       FALSE,  },
-        
+
+        { (BOOL*)&bRandomDamageVoice,           'b',    L"Battle",  L"RandomDamageVoice",       FALSE,  },
+
     };
 
     CONFIG_ENTRY *Entry;
@@ -1797,6 +1817,11 @@ void patch_ed63cn7(PVOID hModule)
     addrCheckMirrorWPADPatch    = 0x0043E964;
     addrCheckMirrorWPADBack     = 0x0043E9B3;
     addrFixMirrorBugPatch       = 0x0043A400 - 0x00400000;
+
+    lpfnBattleDamageVoice       = 0x0043C290;
+    lpfnStopSound               = 0x00474660;
+    lpfnBattlePlaySound         = 0x0043C240;
+    lpTimeMs                    = (PULONG_PTR)0x6726E0;
 
     resolution                  = (PSIZE)0x005BDFF0; // 分辨率
 
@@ -1943,6 +1968,11 @@ void patch_ed63jp7(PVOID hModule)
     addrCheckMirrorWPADBack     = 0x0043E4A3;
     addrFixMirrorBugPatch       = 0x00439F00 - 0x00400000;
 
+    lpfnBattleDamageVoice       = 0x0043BD80;
+    lpfnStopSound               = 0x00473AE0;
+    lpfnBattlePlaySound         = 0x0043BD30;
+    lpTimeMs                    = (PULONG_PTR)0x66E674;
+
     resolution                  = (PSIZE)0x005B86C0; // 分辨率
     CodePage                    = 932;
 
@@ -2077,6 +2107,11 @@ void patch_ed63jp1002(PVOID hModule)
     addrCheckMirrorWPADPatch    = 0x0043E444;
     addrCheckMirrorWPADBack     = 0x0043E493;
     addrFixMirrorBugPatch       = 0x00439EF0 - 0x00400000;
+
+    lpfnBattleDamageVoice       = 0x0043BD70;
+    lpfnStopSound               = 0x00473980;
+    lpfnBattlePlaySound         = 0x0043BD20;
+    lpTimeMs                    = (PULONG_PTR)0x66E534;
 
     resolution                  = (PSIZE)0x005B8644; // 分辨率
 
@@ -2462,6 +2497,8 @@ void patch_ed62jp1020(PVOID hModule)
 
     addrSetChrStatusByEquipPatch= 0x004C96C0;
     addrFixPspScDamageBugPatch  = 0x00405AE0 - 0x00400000;
+
+    lpfnStopSound               = 0x004689E0;
 
     resolution                  = (PSIZE)0x00562BF4; // 分辨率
 
@@ -2859,6 +2896,7 @@ void patch_ed6123(PVOID hModule)
         {
             addrCheckMirrorWPADPatch    = (ULONG_PTR)-1;
             addrFixMirrorBugPatch       = (ULONG_PTR)-1;
+            lpfnBattleDamageVoice       = (ULONG_PTR)-1;
         }
 
         MEMORY_PATCH p[] =
@@ -2879,6 +2917,9 @@ void patch_ed6123(PVOID hModule)
             INLINE_HOOK_JUMP        (addrCheckCraftMirrorPatch,     CheckCraftMirror,   StubCheckCraftMirror),
             INLINE_HOOK_JUMP        (addrCheckArtsMirrorPatch,      CheckArtsMirror,    StubCheckArtsMirror),
             INLINE_HOOK_JUMP_NULL   (addrCheckMirrorWPADPatch,      CheckMirrorWhenPreviewAtDelay),
+
+            // PSP 被打语音
+            INLINE_HOOK_JUMP_NULL   (lpfnBattleDamageVoice,         METHOD_PTR(&CBattle::DamageVoice)),
         };
         Nt_PatchMemory(p, countof(p), f, countof(f), hModule);
     }

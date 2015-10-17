@@ -72,9 +72,16 @@ INIT_STATIC_MEMBER(CBattleInfoBox::StubDrawMonsterInfo);
 class CBattle
 {
 public:
+    FORCEINLINE static VOID STDCALL PlaySound(USHORT id)
+    {
+        DETOUR_FUNCTION(PlaySound, lpfnBattlePlaySound, id);
+    }
     bool THISCALL LoadStatusData(ULONG MSFile, ULONG ChrPosition, ULONG a3 = 0);
     VOID FASTCALL dump_status_rev_special(ULONG ChrPosition);
     VOID THISCALL InitBeforeAtIconUp();
+
+    VOID THISCALL DamageVoiceOriginal(MONSTER_STATUS* lpBattleInf, BOOL UseVoiceInterval = TRUE);
+    VOID THISCALL DamageVoice(MONSTER_STATUS* lpBattleInf, BOOL UseVoiceInterval = TRUE);
 
     DECL_STATIC_METHOD_POINTER(CBattle, LoadStatusData);
     DECL_STATIC_METHOD_POINTER(CBattle, InitBeforeAtIconUp);
@@ -721,6 +728,343 @@ ASM VOID ed6Drive3Patch()
         //ret;
     }
 
+}
+#endif
+
+#ifdef _ED63_NS_
+VOID THISCALL CBattle::DamageVoiceOriginal(MONSTER_STATUS* lpBattleInf, BOOL UseVoiceInterval /* = TRUE */)
+{
+    USHORT chrNo = lpBattleInf->SoldierNo;
+    if (chrNo >= 0x10)
+    {
+        return;
+    }
+
+    typedef struct _VOICE_ENTRY
+    {
+        FileIndex   symbol;
+        USHORT      voice[2];
+    } VOICE_ENTRY;
+
+    static VOICE_ENTRY voice_entry[] =
+    {
+        { 0x310001, 1023,   1024, },    // 0x3FF 0x400  // 艾丝蒂尔
+        { 0x310002, 1056,   1057, },    // 0x420 0x421  // 约修亚
+        { 0x310003, 1091,   1092, },    // 0x443 0x444  // 雪拉扎德
+        { 0x310193, 1129,   1130, },    // 0x469 0x46A  // 奥利维尔
+        { 0x310005, 1179,   1180, },    // 0x49B 0x49C  // 科洛丝
+        { 0x310006, 1208,   1209, },    // 0x4B8 0x4B9  // 阿加特
+        { 0x310007, 1230,   1231, },    // 0x4CE 0x4CF  // 提妲
+        { 0x310157, 1230,   1231, },    // 0x4CE 0x4CF  // 提妲 导力装甲 未使用
+        { 0x310008, 1270,   1271, },    // 0x4F6 0x4F7  // 金
+        { 0x3100BD, 1535,   1536, },    // 0x5FF 0x600  // 凯文
+        { 0x310021, 1327,   1328, },    // 0x52F 0x530  // 亚妮拉丝
+        { 0x310016, 1360,   1361, },    // 0x550 0x551  // 乔丝特
+        { 0x310012, 1492,   1493, },    // 0x5D4 0x5D5  // 理查德
+        { 0x310156, 1581,   1582, },    // 0x62D 0x62E  // 莉丝
+        { 0x310192, 1704,   1705, },    // 0x6A8 0x6A9  // 黑骑士
+        { 0x310203, 1581,   1582, },    // 0x62D 0x62E  // 莉丝
+        { 0x310100, 1623,   1624, },    // 0x657 0x658  // 玲
+        { 0x310106, 1666,   1667, },    // 0x682 0x683  // 穆拉
+        { 0x310107, 1422,   1423, },    // 0x58E 0x58F  // 尤莉亚
+        { 0x310104, 1472,   1473, },    // 0x5C0 0x5C1  // 怀斯曼
+        { 0x310104, 1452,   1454, },    // 0x5AC 0x5AE  // error
+        { 0x31018D, 1848,   1849, },    // 0x738 0x739  // 雾香
+        { 0x31018E, 1879,   1880, },    // 0x757 0x758  // 菲利普
+        { 0x3100FF, 1789,   1790, },    // 0x6FD 0x6FE  // 瓦鲁特
+        { 0x310101, 1819,   1820, },    // 0x71B 0x71C  // 露茜奥拉
+        { 0x310102, 1759,   1760, },    // 0x6DF 0x6E0  // 布卢布兰
+        { 0x310110, 1732,   1733, },    // 0x6C4 0x6C5  // 卡西乌斯
+        { 0x31013A, 1928,   1929, },    // 0x788 0x789  // 基尔巴特
+        { 0x310020, 1397,   1398, },    // 0x575 0x576  // 克鲁茨
+    };
+
+    VOICE_ENTRY* p;
+    BOOL find = FALSE;
+    FOR_EACH_ARRAY(p, voice_entry)
+    {
+        if (p->symbol.file == 0)
+        {
+            break;
+        }
+        if (p->symbol.file == lpBattleInf->SYFileIndex.file)
+        {
+            find = TRUE;
+            break;
+        }
+    }
+    if (!find)
+    {
+        return;
+    }
+
+    static ULONG lastHitTime[0x10], lastVoiceTime[0x10];
+    ULONG nowTime = *lpTimeMs;
+    if ((lastHitTime[chrNo] + 0x2BC <= nowTime || UseVoiceInterval) &&
+        lastVoiceTime[chrNo] + 0x2BC <= nowTime)
+    {
+        USHORT seId = p->voice[rand() & 1];
+        StopSound(seId);
+        PlaySound(seId);
+        nowTime = *lpTimeMs;
+        lastVoiceTime[chrNo] = nowTime;
+    }
+    lastHitTime[chrNo] = nowTime;
+}
+
+VOID THISCALL CBattle::DamageVoice(MONSTER_STATUS* lpBattleInf, BOOL UseVoiceInterval /* = TRUE */)
+{
+    if (lpBattleInf == nullptr)
+    {
+        return;
+    }
+    USHORT chrNo = lpBattleInf->SoldierNo;
+    if (chrNo >= 0x10)
+    {
+        return;
+    }
+
+    typedef struct _VOICE_MAP
+    {
+        FileIndex   symbol;
+        USHORT      index;
+    } VOICE_MAP;
+
+    typedef struct _VOICE_PROBABILITY 
+    {
+        BYTE    probability[8];
+    } VOICE_PROBABILITY;
+
+    typedef struct _VOICE_GROUP
+    {
+        USHORT  voice[8];
+    } VOICE_GROUP;
+
+    static VOICE_MAP voice_map[] =
+    {
+        { 0x310001,  0, },  // 艾丝蒂尔
+        { 0x310002,  1, },  // 约修亚
+        { 0x310003,  2, },  // 雪拉扎德
+        { 0x310004,  3, },  // 奥利维尔
+        { 0x310193,  3, },  // 奥利维尔
+        { 0x310005,  4, },  // 科洛丝
+        { 0x310006,  5, },  // 阿加特
+        { 0x310007,  6, },  // 提妲
+        { 0x310157,  6, },  // 提妲 导力装甲 未使用
+        { 0x310008,  7, },  // 金
+        { 0x310016,  8, },  // 乔丝特
+        { 0x310021,  9, },  // 亚妮拉丝
+        { 0x310020, 10, },  // 克鲁茨
+        { 0x310011, 11, },  // 洛伦斯少尉
+        { 0x310027, 11, },  // 洛伦斯
+        { 0x310103, 11, },  // 剑帝莱维
+        { 0x310012, 12, },  // 理查德
+        { 0x310107, 13, },  // 尤莉亚
+        { 0x310104, 14, },  // 怀斯曼
+        { 0x3100BD, 15, },  // 凯文
+        { 0x310100, 16, },  // 玲
+        { 0x310106, 17, },  // 穆拉
+        { 0x310102, 18, },  // 布卢布兰
+        { 0x3100FF, 19, },  // 瓦鲁特
+        { 0x310101, 20, },  // 露茜奥拉
+        { 0x31013A, 21, },  // 基尔巴特
+        { 0x310156, 22, },  // 莉丝
+        { 0x310203, 22, },  // 莉丝
+        { 0x310192, 23, },  // 黑骑士
+        { 0x310110, 24, },  // 卡西乌斯
+        { 0x31018D, 25, },  // 雾香
+        { 0x31018E, 26, },  // 菲利普
+        {0}, {0}, {0}, {0}, {0}, {0}, {0}, {0}, {0}, {0}, 
+    };
+
+    static VOICE_PROBABILITY voice_probability[] = 
+    {
+        { 50,   50,  0,  0,  0,  0,  0, },  //  0
+        { 50,   50,  0,  0,  0,  0,  0, },  //  1
+        { 50,   50,  0,  0,  0,  0,  0, },  //  2
+        { 50,   50,  0,  0,  0,  0,  0, },  //  3
+        { 50,   50,  0,  0,  0,  0,  0, },  //  4
+        { 50,   50,  0,  0,  0,  0,  0, },  //  5
+        { 50,   50,  0,  0,  0,  0,  0, },  //  6
+        { 50,   50,  0,  0,  0,  0,  0, },  //  7
+        { 50,   50,  0,  0,  0,  0,  0, },  //  8
+        { 50,   50,  0,  0,  0,  0,  0, },  //  9
+        { 50,   50,  0,  0,  0,  0,  0, },  // 10
+        { 50,   35, 15,  0,  0,  0,  0, },  // 11
+        { 50,   50,  0,  0,  0,  0,  0, },  // 12
+        { 50,   50,  0,  0,  0,  0,  0, },  // 13
+        { 50,   50,  0,  0,  0,  0,  0, },  // 14
+        { 50,   50,  0,  0,  0,  0,  0, },  // 15
+        { 33,   34, 33,  0,  0,  0,  0, },  // 16
+        { 50,   50,  0,  0,  0,  0,  0, },  // 17
+        { 50,   50,  0,  0,  0,  0,  0, },  // 18
+        { 40,   40, 20,  0,  0,  0,  0, },  // 19
+        { 50,   50,  0,  0,  0,  0,  0, },  // 20
+        { 15,   15, 14, 14, 14, 14, 14, },  // 21
+        { 33,   34, 33,  0,  0,  0,  0, },  // 22
+        { 50,   50,  0,  0,  0,  0,  0, },  // 23
+        { 45,   45, 10,  0,  0,  0,  0, },  // 24
+        { 50,   50,  0,  0,  0,  0,  0, },  // 25
+        { 50,   50,  0,  0,  0,  0,  0, },  // 26
+        {0}, {0}, {0}, {0}, {0}, {0}, {0}, {0}, {0}, {0}, 
+    };
+
+    static VOICE_GROUP voice_group[] =
+    {
+        { 1023, 1024,      0,      0,      0,      0,      0, },    //  0
+        { 1056, 1057,      0,      0,      0,      0,      0, },    //  1
+        { 1091, 1092,      0,      0,      0,      0,      0, },    //  2
+        { 1129, 1130,      0,      0,      0,      0,      0, },    //  3
+        { 1179, 1180,      0,      0,      0,      0,      0, },    //  4
+        { 1208, 1209,      0,      0,      0,      0,      0, },    //  5
+        { 1230, 1231,      0,      0,      0,      0,      0, },    //  6
+        { 1270, 1271,      0,      0,      0,      0,      0, },    //  7
+        { 1360, 1361,      0,      0,      0,      0,      0, },    //  8
+        { 1327, 1328,      0,      0,      0,      0,      0, },    //  9
+        { 1397, 1398,      0,      0,      0,      0,      0, },    // 10
+        { 1452, 1453,   1454,      0,      0,      0,      0, },    // 11
+        { 1492, 1493,      0,      0,      0,      0,      0, },    // 12
+        { 1422, 1423,      0,      0,      0,      0,      0, },    // 13
+        { 1472, 1473,      0,      0,      0,      0,      0, },    // 14
+        { 1535, 1536,      0,      0,      0,      0,      0, },    // 15
+        { 1623, 1624,   1625,      0,      0,      0,      0, },    // 16
+        { 1666, 1667,      0,      0,      0,      0,      0, },    // 17
+        { 1759, 1760,      0,      0,      0,      0,      0, },    // 18
+        { 1789, 1790,   1791,      0,      0,      0,      0, },    // 19
+        { 1819, 1820,      0,      0,      0,      0,      0, },    // 20
+        { 1928, 1929,   1930,   1931,   1932,   1933,   1934, },    // 21
+        { 1581, 1582,   1583,      0,      0,      0,      0, },    // 22
+        { 1704, 1705,      0,      0,      0,      0,      0, },    // 23
+        { 1732, 1733,   1734,      0,      0,      0,      0, },    // 24
+        { 1848, 1849,      0,      0,      0,      0,      0, },    // 25
+        { 1879, 1880,      0,      0,      0,      0,      0, },    // 26
+        {0}, {0}, {0}, {0}, {0}, {0}, {0}, {0}, {0}, {0}, 
+    };
+
+#if 0
+    {
+        static ULONG lastVoiceTime, chr_index, voice_index;
+        if (lastVoiceTime > *lpTimeMs || lastVoiceTime + 0x2BC <= *lpTimeMs)
+        {
+            USHORT voice_id;
+            for(;;)
+            {
+                voice_id = voice_group[chr_index].voice[voice_index];
+                ++voice_index;
+                if (voice_index == countof(voice_group->voice))
+                {
+                    voice_index = 0;
+                    ++chr_index;
+                    if (chr_index == countof(voice_group))
+                    {
+                        chr_index = 0;
+                    }
+                }
+                if (voice_id != 0)
+                {
+                    break;
+                }
+            }
+            StopSound(voice_id);
+            PlaySound(voice_id);
+            WriteConsoleLogA("DamageVoice: %2d %d id: %d\r\n", chr_index, voice_index, voice_id);
+            lastVoiceTime = *lpTimeMs;
+        }
+        return;
+    }
+#endif
+
+    auto fcmp = [] (const void* pkey, const void* pelem) -> int
+    {
+        return ((VOICE_MAP*)pkey)->symbol.file - ((VOICE_MAP*)pelem)->symbol.file;
+    };
+
+    // sort once
+    static BOOL     sorted = FALSE;
+    static USHORT   voice_map_count, chr_count;
+    if (!sorted)
+    {
+        for (USHORT i = countof(voice_map) - 1; i; --i)
+        {
+            if (voice_map[i].symbol.file != 0)
+            {
+                voice_map_count = ++i;
+                break;
+            }
+        }
+        for (USHORT i = countof(voice_probability) - 1; i; --i)
+        {
+            if (*(LONG64*)&voice_probability[i] != 0)
+            {
+                chr_count = ++i;
+                break;
+            }
+        }
+        qsort(voice_map, voice_map_count, sizeof(*voice_map), fcmp);
+        sorted = TRUE;
+    }
+
+    // get chr_index
+    VOICE_MAP to_find = { lpBattleInf->SYFileIndex, };
+    VOICE_MAP* find = (VOICE_MAP*)bsearch(&to_find, voice_map, voice_map_count, sizeof(*voice_map), fcmp);
+    ULONG chr_index;
+    if (find)
+    {
+        chr_index = find->index;
+    }
+    else
+    {
+        if (bRandomDamageVoice)
+        {
+            if (lpBattleInf->ASFileIndex.file == 0x3004d7) // 基尔巴特 in Ｇ-阿帕奇
+            {
+                return;
+            }
+            chr_index = randX(chr_count);
+        }
+        else
+        {
+            return;
+        }
+    }
+    
+    if (chr_index >= countof(voice_probability))
+    {
+        return;
+    }
+
+    // get voice_index
+    int rand_result = randX(100);
+    int voice_index = 0;
+    for (int i = 0; i < countof(voice_probability[0].probability); ++i)
+    {
+        rand_result -= voice_probability[chr_index].probability[i];
+        if (rand_result < 0)
+        {
+            voice_index = i;
+            break;
+        }
+    }
+
+    // get voice_id
+    USHORT voice_id = voice_group[chr_index].voice[voice_index];
+    if (voice_id == 0)
+    {
+        return;
+    }
+ 
+    static ULONG lastHitTime[0x10], lastVoiceTime[0x10];
+    ULONG nowTime = *lpTimeMs;
+    if ((UseVoiceInterval || lastHitTime[chrNo] > nowTime || lastHitTime[chrNo] + 0x2BC <= nowTime) &&
+        (lastVoiceTime[chrNo] > nowTime || lastVoiceTime[chrNo] + 0x2BC <= nowTime))
+    {
+        StopSound(voice_id);
+        PlaySound(voice_id);
+        WriteConsoleLogA("DamageVoice: %s %d\r\n", lpBattleInf->ChrName, voice_id);
+        nowTime = *lpTimeMs;
+        lastVoiceTime[chrNo] = nowTime;
+    }
+    lastHitTime[chrNo] = nowTime;
 }
 #endif
 
