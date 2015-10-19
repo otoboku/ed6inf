@@ -818,7 +818,7 @@ VOID THISCALL CBattle::DamageVoice(MONSTER_STATUS* lpBattleInf, BOOL UseVoiceInt
     {
         return;
     }
-    USHORT chrNo = lpBattleInf->SoldierNo;
+    ULONG chrNo = lpBattleInf->SoldierNo;
     if (chrNo >= 0x10)
     {
         return;
@@ -874,7 +874,6 @@ VOID THISCALL CBattle::DamageVoice(MONSTER_STATUS* lpBattleInf, BOOL UseVoiceInt
         { 0x310110, 24, },  // ¿¨Î÷ÎÚË¹
         { 0x31018D, 25, },  // ÎíÏã
         { 0x31018E, 26, },  // ·ÆÀûÆÕ
-        {0}, {0}, {0}, {0}, {0}, {0}, {0}, {0}, {0}, {0}, 
     };
 
     static VOICE_PROBABILITY voice_probability[] = 
@@ -906,7 +905,6 @@ VOID THISCALL CBattle::DamageVoice(MONSTER_STATUS* lpBattleInf, BOOL UseVoiceInt
         { 45,   45, 10,  0,  0,  0,  0, },  // 24
         { 50,   50,  0,  0,  0,  0,  0, },  // 25
         { 50,   50,  0,  0,  0,  0,  0, },  // 26
-        {0}, {0}, {0}, {0}, {0}, {0}, {0}, {0}, {0}, {0}, 
     };
 
     static VOICE_GROUP voice_group[] =
@@ -938,7 +936,6 @@ VOID THISCALL CBattle::DamageVoice(MONSTER_STATUS* lpBattleInf, BOOL UseVoiceInt
         { 1732, 1733,   1734,      0,      0,      0,      0, },    // 24
         { 1848, 1849,      0,      0,      0,      0,      0, },    // 25
         { 1879, 1880,      0,      0,      0,      0,      0, },    // 26
-        {0}, {0}, {0}, {0}, {0}, {0}, {0}, {0}, {0}, {0}, 
     };
 
 #if 0
@@ -981,25 +978,10 @@ VOID THISCALL CBattle::DamageVoice(MONSTER_STATUS* lpBattleInf, BOOL UseVoiceInt
 
     // sort once
     static BOOL     sorted = FALSE;
-    static USHORT   voice_map_count, chr_count;
+    const ULONG     voice_map_count = countof(voice_map);
+    const ULONG     chr_count = MY_MIN(countof(voice_probability), countof(voice_group));
     if (!sorted)
     {
-        for (USHORT i = countof(voice_map) - 1; i; --i)
-        {
-            if (voice_map[i].symbol.file != 0)
-            {
-                voice_map_count = ++i;
-                break;
-            }
-        }
-        for (USHORT i = countof(voice_probability) - 1; i; --i)
-        {
-            if (*(LONG64*)&voice_probability[i] != 0)
-            {
-                chr_count = ++i;
-                break;
-            }
-        }
         qsort(voice_map, voice_map_count, sizeof(*voice_map), fcmp);
         sorted = TRUE;
     }
@@ -1008,7 +990,7 @@ VOID THISCALL CBattle::DamageVoice(MONSTER_STATUS* lpBattleInf, BOOL UseVoiceInt
     VOICE_MAP to_find = { lpBattleInf->SYFileIndex, };
     VOICE_MAP* find = (VOICE_MAP*)bsearch(&to_find, voice_map, voice_map_count, sizeof(*voice_map), fcmp);
     ULONG chr_index;
-    if (find)
+    if (find && find->index < chr_count)
     {
         chr_index = find->index;
     }
@@ -1028,41 +1010,34 @@ VOID THISCALL CBattle::DamageVoice(MONSTER_STATUS* lpBattleInf, BOOL UseVoiceInt
         }
     }
     
-    if (chr_index >= countof(voice_probability))
-    {
-        return;
-    }
-
-    // get voice_index
-    int rand_result = randX(100);
-    int voice_index = 0;
-    for (int i = 0; i < countof(voice_probability[0].probability); ++i)
-    {
-        rand_result -= voice_probability[chr_index].probability[i];
-        if (rand_result < 0)
-        {
-            voice_index = i;
-            break;
-        }
-    }
-
-    // get voice_id
-    USHORT voice_id = voice_group[chr_index].voice[voice_index];
-    if (voice_id == 0)
-    {
-        return;
-    }
- 
     static ULONG lastHitTime[0x10], lastVoiceTime[0x10];
+    //chrNo = chr_index;  // psp use chr_index
     ULONG nowTime = *lpTimeMs;
     if ((UseVoiceInterval || lastHitTime[chrNo] > nowTime || lastHitTime[chrNo] + 0x2BC <= nowTime) &&
         (lastVoiceTime[chrNo] > nowTime || lastVoiceTime[chrNo] + 0x2BC <= nowTime))
     {
-        StopSound(voice_id);
-        PlaySound(voice_id);
-        WriteConsoleLogA("DamageVoice: %s %d\r\n", lpBattleInf->ChrName, voice_id);
-        nowTime = *lpTimeMs;
-        lastVoiceTime[chrNo] = nowTime;
+        // get voice_index
+        int rand_result = randX(100);
+        int voice_index = 0;
+        for (; voice_index != countof(voice_probability[0].probability) - 1; ++voice_index)
+        {
+            rand_result -= voice_probability[chr_index].probability[voice_index];
+            if (rand_result < 0)
+            {
+                break;
+            }
+        }
+
+        // get voice_id
+        USHORT voice_id = voice_group[chr_index].voice[voice_index];
+        if (voice_id != 0)
+        {
+            StopSound(voice_id);
+            PlaySound(voice_id);
+            WriteConsoleLogA("DamageVoice: %s\t%2d %d\r\n", lpBattleInf->ChrName, chrNo, voice_id);
+            nowTime = *lpTimeMs;
+            lastVoiceTime[chrNo] = nowTime;
+        }
     }
     lastHitTime[chrNo] = nowTime;
 }

@@ -100,6 +100,7 @@ BOOL    bUnlimitedSummon;
 BOOL    bFixEnemyStatusBug;
 BOOL    bFixPspScDamageBug;
 
+BOOL    bEnableVoicePatch;
 BOOL    bRandomDamageVoice;
 
 enum
@@ -261,6 +262,11 @@ namespace NED6123
     ULONG_PTR   lpfnBattlePlaySound;
     PULONG_PTR  lpTimeMs;
 
+    ULONG_PTR   addrPartySelectVoicePatch   = (ULONG_PTR)-1;
+    ULONG_PTR   addrPartySelectVoiceBack;
+    ULONG_PTR   addrShowChrIntroPatch       = (ULONG_PTR)-1;
+    ULONG_PTR   addrShowChrIntroBack;
+
     PSIZE       resolution                  = (PSIZE)0; // 分辨率
 
     bool        half_mirror_rand[0x10];
@@ -283,9 +289,11 @@ namespace NED6123
         DETOUR_FUNCTION(rand, lpfnRand);
     }
 
-    FORCEINLINE USHORT CDECL randX(USHORT max)
+    //FORCEINLINE USHORT CDECL randX(USHORT max)
+    int randX(int max)
     {
-        DETOUR_FUNCTION(randX, lpfnRandX, max);
+        //DETOUR_FUNCTION(randX, lpfnRandX, max);
+        return max == 0 ? 0 : rand() % max;
     }
 
     NoInline
@@ -697,6 +705,12 @@ namespace NED63
     NoInline
     bool CheckArtsMirrorWithType (PMONSTER_STATUS src, PMONSTER_STATUS dst, LONG action_type = -1);
     bool FASTCALL CheckMirrorWithType(PMONSTER_STATUS src, PMONSTER_STATUS dst, LONG action_type);
+
+    VOID NakedPartySelectVoice();
+    VOID FASTCALL PartySelectVoice(UCHAR ChrNo, BOOL a2 = FALSE);
+
+    VOID NakedShowChrIntro();
+    const char* FASTCALL GetChrIntro(ULONG ChrNo);
 
     #define _ED63_NS_
     #include "ed6_ns_common.h"
@@ -1541,6 +1555,78 @@ L01:
             jmp     addrCheckMirrorWPADBack;
         }
     }
+
+    ASM VOID NakedPartySelectVoice()
+    {
+        INLINE_ASM
+        {
+            //xor     edx, edx;
+            call    PartySelectVoice;
+            jmp     addrPartySelectVoiceBack;
+        }
+    }
+
+    VOID FASTCALL PartySelectVoice(UCHAR ChrNo, BOOL a2 /* = FALSE */)
+    {
+        static struct { USHORT voice[2]; } voice_group[] =
+        {
+            { 1027, 1033, },    //  0
+            //{ 1575, 1469  },  // test
+            { 1063, 1064, },    //  1
+            { 1082, 1096, },    //  2
+            { 1120, 1134, },    //  3
+            { 1184, 1185, },    //  4
+            { 1215, 1216, },    //  5
+            { 1233, 1237, },    //  6
+            { 1275, 1276, },    //  7
+            { 1295, 1296, },    //  8
+            { 1332, 1333, },    //  9
+            { 1352, 1365, },    // 10
+            { 1496, 1500, },    // 11
+            { 1658, 1670, },    // 12
+            { 1412, 1426, },    // 13
+            { 1587, 1588, },    // 14
+            { 1630, 1631, },    // 15
+        };
+        const ULONG     CHR_COUNT   = countof(voice_group);
+        const ULONG     VOICE_COUNT = countof(voice_group->voice);
+        static USHORT   voice_index[CHR_COUNT];
+
+        if (ChrNo >= CHR_COUNT)
+        {
+            return;
+        }
+        auto    group = voice_group[ChrNo];
+        auto    index = voice_index[ChrNo];
+        StopSound(group.voice[index]);
+        voice_index[ChrNo] = index = (index + 1) % VOICE_COUNT;
+        CBattle::PlaySound(group.voice[index]);
+    }
+
+    ASM VOID NakedShowChrIntro()
+    {
+        INLINE_ASM
+        {
+            push    ecx;
+            mov     ecx, eax;
+            call    GetChrIntro;
+            pop     ecx;
+            test    eax, eax;
+            je      back;
+            mov     dword ptr[esp], eax;
+        back:
+            jmp     addrShowChrIntroBack;
+        }
+    }
+
+    const char* FASTCALL GetChrIntro(ULONG ChrNo)
+    {
+        if (ChrNo >= 0x10)
+        {
+            return nullptr;
+        }
+        return CodePage == 936 ? CHR_INTRO_936[ChrNo] : CHR_INTRO_932[ChrNo];
+    }
 }
 
 enum GameVersion
@@ -1672,6 +1758,7 @@ void ConfigInit()
         { (BOOL*)&bFixEnemyStatusBug,           'b',    L"Battle",  L"FixEnemyStatusBug",       FALSE,  },
         { (BOOL*)&bFixPspScDamageBug,           'b',    L"Battle",  L"FixPspScDamageBug",       FALSE,  },
 
+        { (BOOL*)&bEnableVoicePatch,            'b',    L"Battle",  L"EnableVoicePatch",        TRUE,   },
         { (BOOL*)&bRandomDamageVoice,           'b',    L"Battle",  L"RandomDamageVoice",       FALSE,  },
 
     };
@@ -1823,6 +1910,9 @@ void patch_ed63cn7(PVOID hModule)
     lpfnBattlePlaySound         = 0x0043C240;
     lpTimeMs                    = (PULONG_PTR)0x6726E0;
 
+    addrPartySelectVoicePatch   = 0x0053FFC6;
+    addrShowChrIntroPatch       = 0x0053F7A1;
+
     resolution                  = (PSIZE)0x005BDFF0; // 分辨率
 
     if (*(PBYTE)addrChangeEnemyStatusPatch0 == 0xE9) // 0xE8 call 0xE9 jump; 防止重复补丁
@@ -1973,6 +2063,9 @@ void patch_ed63jp7(PVOID hModule)
     lpfnBattlePlaySound         = 0x0043BD30;
     lpTimeMs                    = (PULONG_PTR)0x66E674;
 
+    addrPartySelectVoicePatch   = 0x0053D7D6;
+    addrShowChrIntroPatch       = 0x0053CFB1;
+
     resolution                  = (PSIZE)0x005B86C0; // 分辨率
     CodePage                    = 932;
 
@@ -2112,6 +2205,9 @@ void patch_ed63jp1002(PVOID hModule)
     lpfnStopSound               = 0x00473980;
     lpfnBattlePlaySound         = 0x0043BD20;
     lpTimeMs                    = (PULONG_PTR)0x66E534;
+
+    addrPartySelectVoicePatch   = 0x0053D6D6;
+    addrShowChrIntroPatch       = 0x0053CEB1;
 
     resolution                  = (PSIZE)0x005B8644; // 分辨率
 
@@ -2896,7 +2992,13 @@ void patch_ed6123(PVOID hModule)
         {
             addrCheckMirrorWPADPatch    = (ULONG_PTR)-1;
             addrFixMirrorBugPatch       = (ULONG_PTR)-1;
+        }
+
+        if (!bEnableVoicePatch)
+        {
             lpfnBattleDamageVoice       = (ULONG_PTR)-1;
+            addrPartySelectVoicePatch   = (ULONG_PTR)-1;
+            addrShowChrIntroPatch       = (ULONG_PTR)-1;
         }
 
         MEMORY_PATCH p[] =
@@ -2920,6 +3022,9 @@ void patch_ed6123(PVOID hModule)
 
             // PSP 被打语音
             INLINE_HOOK_JUMP_NULL   (lpfnBattleDamageVoice,         METHOD_PTR(&CBattle::DamageVoice)),
+            // PSP Party编成语音及介绍
+            INLINE_HOOK_JUMP        (addrPartySelectVoicePatch,     NakedPartySelectVoice,                      addrPartySelectVoiceBack),
+            INLINE_HOOK_JUMP        (addrShowChrIntroPatch,         NakedShowChrIntro,                          addrShowChrIntroBack),
         };
         Nt_PatchMemory(p, countof(p), f, countof(f), hModule);
     }
