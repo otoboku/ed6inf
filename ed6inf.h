@@ -101,7 +101,7 @@ BOOL    bFixEnemyStatusBug;
 BOOL    bFixPspScDamageBug;
 
 BOOL    bEnableVoicePatch;
-BOOL    bRandomDamageVoice;
+LONG    nRandomDamageVoice;
 
 enum
 {
@@ -221,7 +221,10 @@ namespace NED6123
     PULONG_PTR  addrLPDir0                  = (PULONG_PTR)0;
     PULONG_PTR  addrBattleNowIndex          = (PULONG_PTR)0;
     pGetAddr    getItemDrop                 = (pGetAddr)0;
-    pGetAddr    getItemName                 = (pGetAddr)0;
+    ULONG_PTR   lpfnGetItemName             = (ULONG_PTR)-1;
+    ULONG_PTR   StubGetItemName;
+    ULONG_PTR   lpfnGetItemIntro            = (ULONG_PTR)-1;
+    ULONG_PTR   StubGetItemIntro;
 
     ULONG_PTR   addrChangeEnemyStatusPatch0 = (ULONG_PTR)-1;
     ULONG_PTR   addrChangeEnemyStatusPatch1 = 0; // addrChangeEnemyStatusPatch0 + 5;
@@ -247,6 +250,7 @@ namespace NED6123
     ULONG_PTR   addrCheckMirrorWPADPatch    = (ULONG_PTR)-1;
     ULONG_PTR   addrCheckMirrorWPADBack;
     ULONG_PTR   addrFixMirrorBugPatch       = (ULONG_PTR)-1;
+    ULONG_PTR   addrAddQuartzEffectTypePatch= (ULONG_PTR)-1;
 
     ULONG_PTR   StubCheckQuartz;
     ULONG_PTR   StubGetHitResult;
@@ -282,6 +286,8 @@ namespace NED6123
 
         CONST USHORT DRIVE1         = 0x2C6;    // 710 驱动1
         CONST USHORT DRIVE2         = 0x2C7;    // 711 驱动2
+        CONST USHORT DRIVE3_SC      = 0x2CD;
+        CONST USHORT DRIVE3_3RD     = 0x2EE;
     }
 
     FORCEINLINE int CDECL rand()
@@ -326,6 +332,41 @@ namespace NED6123
     FORCEINLINE bool CDECL StopSound(ULONG id)
     {
         DETOUR_FUNCTION(StopSound, lpfnStopSound, id);
+    }
+
+    FORCEINLINE char* CDECL GetItemName(ULONG id)
+    {
+        return ((TYPE_OF(&GetItemName))lpfnGetItemName)(id);
+    }
+
+    NoInline char* CDECL GetItemIntro(ULONG id)
+    {
+        char* lpIntro = ((TYPE_OF(&GetItemIntro))StubGetItemIntro)(id);
+        static char intro[0x40];
+        if (lpIntro == nullptr || *(PUSHORT)lpIntro == 0x20)
+        {
+            char* name;
+            switch (id)
+            {
+            case ITEM_ID::SHINKYO:
+                name = "3rd Shinkyo";
+            	break;
+            case ITEM_ID::MAKYO:
+                name = "3rd Makyo";
+                break;
+            case ITEM_ID::DRIVE3_3RD:
+                name = "3rd Drive3";
+                break;
+            case ITEM_ID::DRIVE3_SC:
+                name = "sc Drive3";
+                break;
+            default:
+                name = "";
+            }
+            sprintf(intro, "Item txt %s. ID: 0x%X %d \"%s\"?", lpIntro == nullptr ? "missing" : "empty", id, id, name);
+            lpIntro = intro;
+        }
+        return lpIntro;
     }
 }
 
@@ -712,6 +753,8 @@ namespace NED63
     VOID NakedShowChrIntro();
     const char* FASTCALL GetChrIntro(ULONG ChrNo);
 
+    VOID NakedAddQuartzEffectType();
+
     #define _ED63_NS_
     #include "ed6_ns_common.h"
     #undef  _ED63_NS_
@@ -810,12 +853,12 @@ L01:
         /*偷窃 位置*/
         for (i = 0; i < 2; i++)
         {
-            if (lpBattleInf->DropProbability[i] == 0 || lpBattleInf->DropIndex[i] == 0xFFFF)
+            if (lpBattleInf->DropIndex[i] == 0 || lpBattleInf->DropIndex[i] == 0xFFFF)
             {
                 lpDropItem[i] = nullptr;
                 continue;
             }
-;
+
             lpDropItem[i] = (ED6_DROP_ITEM*)getItemDrop(lpBattleInf->DropIndex[i]);
             if (lpDropItem[i] == nullptr)
             {
@@ -847,9 +890,9 @@ L01:
                 continue;
             }
 
-            if (i == 1)
+            if (i != 0 && lpDropItem[i - 1] != nullptr)
             {
-                dwY+=0x8;
+                dwY+=0x6;
             }
 
             //sprintf(szBuffer, "[%3d%%]Group%d", lpBattleInf->DropProbability[i], lpBattleInf->DropIndex[i]);
@@ -872,7 +915,7 @@ L01:
                     continue;
                 }
 
-                length = sprintf(szBuffer, "[%3d%%]%s", lpDropItem[i]->probability[j], getItemName(lpDropItem[i]->item[j]));
+                length = sprintf(szBuffer, "[%3d%%]%s", lpDropItem[i]->probability[j], GetItemName(lpDropItem[i]->item[j]));
 
                 if (steal[0] == i && steal[1] == j)
                 {
@@ -884,6 +927,47 @@ L01:
                     //DrawSimpleText(0, dwY, szBuffer);
                     line_count = DrawSimpleTextMultiline(0, dwY, 6, 0xC, szBuffer, length);
                 }
+                dwY += 0xC * line_count;
+            }
+        }
+
+        /*显示分界线*/
+        SetTextSize(0);
+        DrawSimpleText(0, dwY, (PCSTR)lpcStatusLine, COLOR_LINE);
+        SetTextSize(1);
+        dwY += 0xA;
+
+        // equip & quartz
+        DrawSimpleText(0, dwY, "Equip:", COLOR_TITLE);
+        dwY += 0xC;
+
+        i = 0;
+        if (lpBattleInf->Equip[0] == 1000)
+        {
+            ++i;
+        }
+        for (; i < countof(lpBattleInf->Equip); ++i)
+        {
+            if (lpBattleInf->Equip[i] != 0 && lpBattleInf->Equip[i] != 0xFFFF)
+            {
+                length = sprintf(szBuffer, "%d:%s", i, GetItemName(lpBattleInf->Equip[i]));
+                line_count = DrawSimpleTextMultiline(0, dwY, 2, 0xC, szBuffer, length);
+                dwY += 0xC * line_count;
+            }
+        }
+
+        BOOL added = FALSE;
+        for (i = 0; i < countof(lpBattleInf->Orb); ++i)
+        {
+            if (lpBattleInf->Orb[i] != 0 && lpBattleInf->Orb[i] != 0xFFFF)
+            {
+                if (!added)
+                {
+                    dwY += 0x6;
+                    added = TRUE;
+                }
+                length = sprintf(szBuffer, "%d:%s", i, GetItemName(lpBattleInf->Orb[i]));
+                line_count = DrawSimpleTextMultiline(0, dwY, 2, 0xC, szBuffer, length);
                 dwY += 0xC * line_count;
             }
         }
@@ -1627,6 +1711,22 @@ L01:
         }
         return CodePage == 936 ? CHR_INTRO_936[ChrNo] : CHR_INTRO_932[ChrNo];
     }
+
+    ASM VOID NakedAddQuartzEffectType()
+    {
+        INLINE_ASM
+        {
+            mov     al, byte ptr[ecx+0x6];
+            cmp     eax, 0x14;
+            jb      back;
+            cmp     eax, 0x15;
+            ja      back;
+            sub     eax, 0x12; // 14-2 15-3
+        back:
+            sub     eax, 2;
+            retn;
+        }
+    }
 }
 
 enum GameVersion
@@ -1759,7 +1859,7 @@ void ConfigInit()
         { (BOOL*)&bFixPspScDamageBug,           'b',    L"Battle",  L"FixPspScDamageBug",       FALSE,  },
 
         { (BOOL*)&bEnableVoicePatch,            'b',    L"Battle",  L"EnableVoicePatch",        TRUE,   },
-        { (BOOL*)&bRandomDamageVoice,           'b',    L"Battle",  L"RandomDamageVoice",       FALSE,  },
+        { (LONG*)&nRandomDamageVoice,           'i',    L"Battle",  L"RandomDamageVoice",       0,      },
 
     };
 
@@ -1880,7 +1980,8 @@ void patch_ed63cn7(PVOID hModule)
     addrLPDir0                  = (PULONG_PTR)0x2CAD950;
     addrBattleNowIndex          = (PULONG_PTR)0x721A38;
     getItemDrop                 = (pGetAddr)0x004A0E60;
-    getItemName                 = (pGetAddr)0x004A0370;
+    lpfnGetItemName             = 0x004A0370;
+    lpfnGetItemIntro            = 0x004A03D0;
 
     addrChangeEnemyStatusPatch0 = 0x0044CDAF;
     addrChangeEnemyStatusPatch1 = addrChangeEnemyStatusPatch0 + 5;
@@ -1904,6 +2005,7 @@ void patch_ed63cn7(PVOID hModule)
     addrCheckMirrorWPADPatch    = 0x0043E964;
     addrCheckMirrorWPADBack     = 0x0043E9B3;
     addrFixMirrorBugPatch       = 0x0043A400 - 0x00400000;
+    addrAddQuartzEffectTypePatch= 0x004A452F;
 
     lpfnBattleDamageVoice       = 0x0043C290;
     lpfnStopSound               = 0x00474660;
@@ -2033,7 +2135,8 @@ void patch_ed63jp7(PVOID hModule)
     addrLPDir0                  = (PULONG_PTR)0x2CAAFD0;
     addrBattleNowIndex          = (PULONG_PTR)0x71D900;
     getItemDrop                 = (pGetAddr)0x004A0320;
-    getItemName                 = (pGetAddr)0x0049F850;
+    lpfnGetItemName             = 0x0049F850;
+    lpfnGetItemIntro            = 0x0049F8B0;
 
     addrChangeEnemyStatusPatch0 = 0x0044C72F;
     addrChangeEnemyStatusPatch1 = addrChangeEnemyStatusPatch0 + 5;
@@ -2057,6 +2160,7 @@ void patch_ed63jp7(PVOID hModule)
     addrCheckMirrorWPADPatch    = 0x0043E454;
     addrCheckMirrorWPADBack     = 0x0043E4A3;
     addrFixMirrorBugPatch       = 0x00439F00 - 0x00400000;
+    addrAddQuartzEffectTypePatch= 0x004A386F;
 
     lpfnBattleDamageVoice       = 0x0043BD80;
     lpfnStopSound               = 0x00473AE0;
@@ -2176,7 +2280,8 @@ void patch_ed63jp1002(PVOID hModule)
     addrLPDir0                  = (PULONG_PTR)0x2CA9538;
     addrBattleNowIndex          = (PULONG_PTR)0x71D7C0;
     getItemDrop                 = (pGetAddr)0x004A00F0;
-    getItemName                 = (pGetAddr)0x0049F620;
+    lpfnGetItemName             = 0x0049F620;
+    lpfnGetItemIntro            = 0x0049F680;
 
     addrChangeEnemyStatusPatch0 = 0x0044C6AF;
     addrChangeEnemyStatusPatch1 = addrChangeEnemyStatusPatch0 + 5;
@@ -2200,6 +2305,7 @@ void patch_ed63jp1002(PVOID hModule)
     addrCheckMirrorWPADPatch    = 0x0043E444;
     addrCheckMirrorWPADBack     = 0x0043E493;
     addrFixMirrorBugPatch       = 0x00439EF0 - 0x00400000;
+    addrAddQuartzEffectTypePatch= 0x004A377F;
 
     lpfnBattleDamageVoice       = 0x0043BD70;
     lpfnStopSound               = 0x00473980;
@@ -2992,6 +3098,7 @@ void patch_ed6123(PVOID hModule)
         {
             addrCheckMirrorWPADPatch    = (ULONG_PTR)-1;
             addrFixMirrorBugPatch       = (ULONG_PTR)-1;
+            addrAddQuartzEffectTypePatch= (ULONG_PTR)-1;
         }
 
         if (!bEnableVoicePatch)
@@ -3019,12 +3126,16 @@ void patch_ed6123(PVOID hModule)
             INLINE_HOOK_JUMP        (addrCheckCraftMirrorPatch,     CheckCraftMirror,   StubCheckCraftMirror),
             INLINE_HOOK_JUMP        (addrCheckArtsMirrorPatch,      CheckArtsMirror,    StubCheckArtsMirror),
             INLINE_HOOK_JUMP_NULL   (addrCheckMirrorWPADPatch,      CheckMirrorWhenPreviewAtDelay),
+            INLINE_HOOK_CALL_NULL   (addrAddQuartzEffectTypePatch,      NakedAddQuartzEffectType),
 
             // PSP 被打语音
             INLINE_HOOK_JUMP_NULL   (lpfnBattleDamageVoice,         METHOD_PTR(&CBattle::DamageVoice)),
             // PSP Party编成语音及介绍
             INLINE_HOOK_JUMP        (addrPartySelectVoicePatch,     NakedPartySelectVoice,                      addrPartySelectVoiceBack),
             INLINE_HOOK_JUMP        (addrShowChrIntroPatch,         NakedShowChrIntro,                          addrShowChrIntroBack),
+
+            // crash when display invalid item's intro
+            INLINE_HOOK_JUMP        (lpfnGetItemIntro,              GetItemIntro,                               StubGetItemIntro),
         };
         Nt_PatchMemory(p, countof(p), f, countof(f), hModule);
     }

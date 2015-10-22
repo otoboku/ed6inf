@@ -827,7 +827,7 @@ VOID THISCALL CBattle::DamageVoice(MONSTER_STATUS* lpBattleInf, BOOL UseVoiceInt
     typedef struct _VOICE_MAP
     {
         FileIndex   symbol;
-        USHORT      index;
+        ULONG       index;
     } VOICE_MAP;
 
     typedef struct _VOICE_PROBABILITY 
@@ -875,6 +875,9 @@ VOID THISCALL CBattle::DamageVoice(MONSTER_STATUS* lpBattleInf, BOOL UseVoiceInt
         { 0x31018D, 25, },  // ÎíÏã
         { 0x31018E, 26, },  // ·ÆÀûÆÕ
     };
+
+    static UCHAR male_index[]   = { 1, 3, 5, 7, 10, 11, 12, 14, 15, 17, 18, 19, 21, 23, 24, 26, };
+    static UCHAR female_index[] = { 0, 2, 4, 6,  8,  9, 13, 16, 20, 22, 25, };
 
     static VOICE_PROBABILITY voice_probability[] = 
     {
@@ -996,13 +999,30 @@ VOID THISCALL CBattle::DamageVoice(MONSTER_STATUS* lpBattleInf, BOOL UseVoiceInt
     }
     else
     {
-        if (bRandomDamageVoice)
+        if (nRandomDamageVoice)
         {
             if (lpBattleInf->ASFileIndex.file == 0x3004d7) // »ù¶û°ÍÌØ in £Ç-°¢ÅÁÆæ
             {
                 return;
             }
-            chr_index = randX(chr_count);
+            switch (nRandomDamageVoice)
+            {
+            case 1:
+                chr_index = randX(chr_count);
+            	break;             
+            case 2:
+                chr_index = male_index[randX(countof(male_index))];
+                break;
+            case 3:
+                chr_index = female_index[randX(countof(female_index))];
+                break;
+            default:
+                chr_index = (nRandomDamageVoice - 4) % chr_count;
+            }
+            if (chr_index >= chr_count)
+            {
+                return;
+            }    
         }
         else
         {
