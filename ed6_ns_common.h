@@ -377,28 +377,25 @@ void __cdecl ed6ChangeEnemyStatus(UINT SoldierNo, ED6_STATUS* pStatusSum, ED6_ST
         pStatusSum->SPD = 1000;
         pStatusSum->MOV = 1000;
 #endif
+        if (pStatusSum->HP != pStatusSum->HPMax)
+        {
+            pStatusSum->HP = pStatusSum->HPMax;
+        }
         ed6SetEnemyFinalStatusPsp(lpBattleInf);
     }
     else
     {
-        if (pStatusSum->HPMax == pStatusSum->HP)
-        {
-            SaturateConvert(&pStatusSum->HPMax, (INT64)pStatusSum->HPMax * sRate.HP_a / 1000 + sRate.HP_b);
-            pStatusSum->HP = pStatusSum->HPMax;
-        }
-        else
-        {
-            SaturateConvert(&pStatusSum->HPMax, (INT64)pStatusSum->HPMax * sRate.HP_a / 1000 + sRate.HP_b);
-            SaturateConvert(&pStatusSum->HP, (INT64)pStatusSum->HP * sRate.HP_a / 1000 + sRate.HP_b);
-        }
-        SaturateConvert(&pStatusSum->STR, (INT64)pStatusSum->STR * sRate.STR_a / 1000 + sRate.STR_b);
-        SaturateConvert(&pStatusSum->DEF, (INT64)pStatusSum->DEF * sRate.DEF_a / 1000 + sRate.DEF_b);
-        SaturateConvert(&pStatusSum->ATS, (INT64)pStatusSum->ATS * sRate.ATS_a / 1000 + sRate.ATS_b);
-        SaturateConvert(&pStatusSum->ADF, (INT64)pStatusSum->ADF * sRate.ADF_a / 1000 + sRate.ADF_b);
-        SaturateConvert(&pStatusSum->SPD, (INT64)pStatusSum->SPD * sRate.SPD_a / 1000 + sRate.SPD_b);
+        SaturateConvert(&pStatusSum->HPMax, (INT64)pStatusSum->HPMax * sRate.HP_a / 1000 + sRate.HP_b);
+        pStatusSum->HP = pStatusSum->HPMax;
+
+        SaturateConvert(&pStatusSum->STR,   (INT64)pStatusSum->STR * sRate.STR_a / 1000 + sRate.STR_b);
+        SaturateConvert(&pStatusSum->DEF,   (INT64)pStatusSum->DEF * sRate.DEF_a / 1000 + sRate.DEF_b);
+        SaturateConvert(&pStatusSum->ATS,   (INT64)pStatusSum->ATS * sRate.ATS_a / 1000 + sRate.ATS_b);
+        SaturateConvert(&pStatusSum->ADF,   (INT64)pStatusSum->ADF * sRate.ADF_a / 1000 + sRate.ADF_b);
+        SaturateConvert(&pStatusSum->SPD,   (INT64)pStatusSum->SPD * sRate.SPD_a / 1000 + sRate.SPD_b);
         SaturateConvertEx(&pStatusSum->DEX, (INT64)pStatusSum->DEX * sRate.DEX_a / 1000 + sRate.DEX_b, (SHORT)0xCCC);
         SaturateConvertEx(&pStatusSum->AGL, (INT64)pStatusSum->AGL * sRate.AGL_a / 1000 + sRate.AGL_b, (SHORT)0xCCC);
-        SaturateConvert(&pStatusSum->MOV, (INT64)pStatusSum->MOV * sRate.MOV_a / 1000 + sRate.MOV_b);
+        SaturateConvert(&pStatusSum->MOV,   (INT64)pStatusSum->MOV * sRate.MOV_a / 1000 + sRate.MOV_b);
     }
 
     if (sRate.ResistNone)

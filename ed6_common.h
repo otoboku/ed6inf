@@ -44,7 +44,7 @@ typedef struct  //每组12+24字节
 
 } FILE_IN_DIR;
 
-typedef struct  // 一组 20字节
+typedef struct  // 0x14
 {
     ULONG               ConditionFlags;
     PVOID               Effect;
@@ -52,11 +52,12 @@ typedef struct  // 一组 20字节
     BYTE                CounterType;
     BYTE                Flags;
     SHORT               ConditionRate;
-    LONG                ATLeft;
-    LONG                Unknown4;
+    ULONG               ATLeft;
+    ULONG               ULong_10;
 
     enum CounterTypes
     {
+        ByAT        = 0,
         ByRounds    = 1,
         ByTimes     = 2,
         ByActions   = 3,
